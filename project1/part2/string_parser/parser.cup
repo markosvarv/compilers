@@ -1,0 +1,107 @@
+/* Simple +/-/* expression language; parser evaluates constant expressions on the fly*/
+/**
+ *  Package and Import Specifications
+ */
+import java_cup.runtime.*;
+
+/**
+ *  Usercode Components
+ */
+parser code {:
+    // Connect this parser to a scanner!
+    Scanner s;
+    Parser(Scanner s){ this.s=s; }
+:}
+
+/* define how to connect to the scanner! */
+scan with {: return s.next_token(); :};
+
+/**
+ *  Symbol Lists
+ */
+
+/* Terminals (tokens returned by the scanner). */
+terminal            LPAREN, RPAREN, RCURLY, COMMA, PLUS, RPARENLCURLY, IF, ELSE, PREFIX, REVERSE;
+terminal   String   IDENTIFIER, STRING_LITERAL;        // our scanner provides numbers as strings
+
+/*  Non terminals */
+non terminal String declaration, args_list, string_list_orempty, args_list_orempty, param, program;
+non terminal String statements, goal, params_list, arg, param_value, string_expr_list, string_expr;
+
+
+/**
+ *  Precedence Declarations
+ */
+precedence left COMMA;
+precedence left IF, ELSE, PREFIX;
+precedence left PLUS;
+precedence left REVERSE;
+
+
+/**
+ *  The Grammar Rules
+ */
+
+goal ::= program                     {: System.out.println('}'); :};
+
+program ::= declaration:d program    {: System.out.println("\n\tpublic static String " + d); :}
+          | statements:s             {: System.out.println("public class Main {\n\tpublic static void main(String[] args) {\n" + s + "\t}"); :}
+          ;
+
+declaration ::= IDENTIFIER:id LPAREN params_list:el RPARENLCURLY string_expr:s RCURLY  {: RESULT = id + "(" + el + ") {\n\t\treturn " + s + ";\n\t}"; :};
+
+statements ::= arg:a statements:s                                   {:RESULT = "\t\tSystem.out.println(" + a + ");\n" + s;:}
+             |                                                      {:RESULT = "";:}
+             ;
+
+params_list ::= param_value:s param:e                               {:RESULT = s + e;:}
+              |                                                     {:RESULT = "";:}
+              ;
+
+param ::= COMMA param_value:t param:p                               {:RESULT = ", " + t + p;:}
+        |                                                           {:RESULT = "";:}
+        ;
+
+param_value ::= IDENTIFIER:i                                        {:RESULT = "String " + i;:};
+
+
+string_expr ::= REVERSE string_expr:s                                                                               {:RESULT = "new StringBuilder(" + s + ").reverse().toString()";:}
+              | string_expr:s1 PLUS string_expr:s2                                                                  {:RESULT = s1 + " + " + s2;:}
+              | IDENTIFIER:id LPAREN string_list_orempty:list RPAREN                                                {:RESULT = id + "(" + list + ")";:}
+              | IF LPAREN string_expr:str1 PREFIX string_expr:str2 RPAREN string_expr:str3 ELSE string_expr:str4    {:RESULT = "((" + str2 + ").startsWith(" + str1 + ") ? " + str3 + " : " + str4 + ")";:}
+              | IDENTIFIER:id                                                                                       {:RESULT = id;:}
+              | STRING_LITERAL:s                                                                                    {:RESULT = "\"" + s + "\"";:}
+              ;
+
+string_list_orempty ::= string_expr_list:str                        {:RESULT = str;:}
+                      |                                             {:RESULT = "" ;:}
+                      ;
+
+string_expr_list ::= REVERSE string_expr_list:s                                                                          {:RESULT = "new StringBuilder(" + s + ").reverse().toString()";:}
+                   | string_expr_list:s1 PLUS string_expr_list:s2                                                        {:RESULT = s1 + " + " + s2;:}
+                   | string_expr_list:s1 COMMA string_expr_list:s2                                                       {:RESULT = s1 + ", " + s2;:}
+                   | IDENTIFIER:id LPAREN string_list_orempty:list RPAREN                                                {:RESULT = id + "(" + list + ")";:}
+                   | IF LPAREN string_expr:str1 PREFIX string_expr:str2 RPAREN string_expr:str3 ELSE string_expr:str4    {:RESULT = "((" + str2 + ").startsWith(" + str1 + ") ? " + str3 + " : " + str4 + ")";:}
+                   | IDENTIFIER:id                                                                                       {:RESULT = id;:}
+                   | STRING_LITERAL:s                                                                                    {:RESULT = "\"" + s + "\"";:}
+                   ;
+
+//no identifier
+args_list_orempty ::= args_list:a                                   {:RESULT = a ;:}
+                    |                                               {:RESULT = "";:}
+                    ;
+
+args_list ::= args_list:al1 COMMA args_list:al2                              {:RESULT = al1 + ", " + al2;:}
+            | REVERSE args_list:al                                           {:RESULT = "new StringBuilder(" + al + ").reverse().toString()";:}
+            | args_list:al1 PLUS args_list:al2                               {:RESULT = al1 + " + " + al2;:}
+            | IDENTIFIER:id LPAREN args_list_orempty:list RPAREN             {:RESULT = id + "(" + list + ")";:}
+            | IF LPAREN arg:a1 PREFIX arg:a2 RPAREN arg:a3 ELSE arg:a4       {:RESULT = "((" + a2 + ").startsWith(" + a1 + ") ? " + a3 + " : " + a4 + ")";:}
+            | STRING_LITERAL:s                                               {:RESULT = "\"" + s + "\"";:}
+            ;
+
+arg ::= REVERSE arg:a                                                        {:RESULT = "new StringBuilder(" + a + ").reverse().toString()";:}
+      | arg:a1 PLUS arg:a2                                                   {:RESULT = a1 + " + " + a2;:}
+      | IDENTIFIER:id LPAREN args_list_orempty:list RPAREN                   {:RESULT = id + "(" + list + ")";:}
+      | IF LPAREN arg:a1 PREFIX arg:a2 RPAREN arg:a3 ELSE arg:a4             {:RESULT = "((" + a2 + ").startsWith(" + a1 + ") ? " + a3 + " : " + a4 + ")";:}
+      | STRING_LITERAL:s                                                     {:RESULT = "\"" + s + "\"";:}
+      ;
