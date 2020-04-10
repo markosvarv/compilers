@@ -23,5 +23,17 @@ inputs
 out
 .idea
 
+# redundant java files
+JavaCharStream.java
+minijava-jtb.jj
+MiniJavaParser.java 
+MiniJavaParserConstants.java
+MiniJavaParserTokenManager.java
+ParseException.java
+Token.java
+TokenMgrError.java
+syntaxtree
+visitor
+
 # virtual machine crash logs, see http://www.java.com/en/download/help/error_hotspot.xml
 hs_err_pid*
