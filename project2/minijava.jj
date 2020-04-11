@@ -213,6 +213,20 @@ void Type() :
 void ArrayType() :
 {}
 {
+  BooleanArrayType()
+|
+  IntegerArrayType()
+}
+
+void BooleanArrayType() :
+{}
+{
+  "boolean" "[" "]"
+}
+
+void IntegerArrayType() :
+{}
+{
   "int" "[" "]"
 }
 
@@ -441,6 +455,22 @@ void ThisExpression() :
 void ArrayAllocationExpression() :
 {}
 {
+  LOOKAHEAD(3)
+  BooleanArrayAllocationExpression()
+|
+  LOOKAHEAD(3)
+  IntegerArrayAllocationExpression()
+}
+
+void BooleanArrayAllocationExpression() :
+{}
+{
+  "new" "boolean" "[" Expression() "]"
+}
+
+void IntegerArrayAllocationExpression() :
+{}
+{
   "new" "int" "[" Expression() "]"
 }
 
@@ -461,3 +491,4 @@ void BracketExpression() :
 {
   "(" Expression() ")"
 }
+

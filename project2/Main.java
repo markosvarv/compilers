@@ -18,10 +18,10 @@ class Main {
         	    MiniJavaParser parser = new MiniJavaParser(fis);
         	    System.err.println("Program parsed successfully.");
         	    FillTableVisitor eval = new FillTableVisitor();
-                TypeCheckingVisitor type_ch = new TypeCheckingVisitor();
+                //TypeCheckingVisitor type_ch = new TypeCheckingVisitor();
         	    Goal root = parser.Goal();
         	    root.accept(eval, symbol_table);
-                root.accept(type_ch, symbol_table);
+                //root.accept(type_ch, symbol_table);
                 symbol_table.printOffsets();
         	}
             catch(ParseException ex){

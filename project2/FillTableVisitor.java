@@ -19,9 +19,8 @@ public class FillTableVisitor extends GJDepthFirst<String, SymbolTable>{
         String classname = n.f1.accept(this, symbol_table);
 
 
-        //System.out.println("classname = " + classname);
         if (!symbol_table.newClass(classname, null)) {
-            System.err.println("class already exists!");
+            System.err.println("class " + classname + " already exists!");
             System.exit(1);
         }
 
@@ -47,9 +46,6 @@ public class FillTableVisitor extends GJDepthFirst<String, SymbolTable>{
     public String visit(ClassExtendsDeclaration n, SymbolTable symbol_table){
         String classname = n.f1.accept(this, symbol_table);
         String parentclass = n.f3.accept(this, symbol_table);
-
-        //System.out.println("classname = " + classname);
-        //System.out.println("parent classname = " + parentclass);
 
         if (!symbol_table.containsClass(parentclass)) {
             System.err.println("parent class doesn't exist!");
@@ -77,14 +73,6 @@ public class FillTableVisitor extends GJDepthFirst<String, SymbolTable>{
     public String visit(VarDeclaration n, SymbolTable symbol_table) {
         String type = n.f0.accept(this, symbol_table);
         String var = n.f1.accept(this, symbol_table);
-
-        //System.out.println(type + ' ' + var + ' ' + class_var);
-        //System.out.println("current_class = " + current_class);
-
-        // if (!symbol_table.containsClass(type) && type!="int" && type!="boolean") {
-        //     System.err.println ("Wrong type: " + type);
-        //     System.exit(1);
-        // }
 
         if (main_class) return null;
 
@@ -124,8 +112,6 @@ public class FillTableVisitor extends GJDepthFirst<String, SymbolTable>{
         n.f4.accept(this, symbol_table);
 
         //System.out.println("current_class = " + current_class);
-
-        //check all methods of parent classes of current class
 
         symbol_table.overrideCheck (current_class, method_name, type);
 
@@ -180,39 +166,3 @@ public class FillTableVisitor extends GJDepthFirst<String, SymbolTable>{
     }
 
 }
-
-/**
- * f0 -> ( TypeDeclaration() )*
- * f1 -> <EOF>
- */
- // public String visit(Goal n, SymbolTable symbol_table){
- //     System.out.println ("mphka sto goal");
- //     return n.f0.accept(this, null);
- // }
-
- /**
-    f0 -> "class"
-    f1 -> Identifier()
-    f2 -> "{"
-    f3 -> "public"
-    f4 -> "static"
-    f5 -> "void"
-    f6 -> "main"
-    f7 -> "("
-    f8 -> "String"
-    f9 -> "["
-    f10 -> "]"
-    f11 -> Identifier()
-    f12 -> ")"
-    f13 -> "{"
-    f14 -> ( VarDeclaration() )*
-    f15 -> ( Statement() )*
-    f16 -> "}"
-    f17 -> "}"
-  */
-
-  // public String visit(MainClass n, SymbolTable symbol_table){
-  //     System.out.println("mphka sto mainclass");
-  //     n.f14.accept(this, symbol_table);
-  //     return null;
-  // }

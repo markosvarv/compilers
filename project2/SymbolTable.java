@@ -7,6 +7,7 @@ public class SymbolTable {
         symbol_table = new LinkedHashMap <String, ClassContents>();
     }
 
+    //add a field in the class
     public boolean addVar (String class_name, String type, String member_name) {
         ClassContents contents = symbol_table.get(class_name);
         if (contents==null) return false;
@@ -17,6 +18,7 @@ public class SymbolTable {
         return true;
     }
 
+    //add a variable in a function in the class
     public boolean addVar (String class_name, String method_name, String type, String member_name) {
         ClassContents contents = symbol_table.get(class_name);
         if (contents==null) return false;
@@ -34,8 +36,8 @@ public class SymbolTable {
     public boolean newClass (String class_name, String parent_class) {
         if (containsClass(class_name)) return false;
         ClassContents content = new ClassContents (class_name, parent_class);
-        symbol_table.put (class_name, content);
-        return true;
+        if (symbol_table.putIfAbsent (class_name, content) == null) return true;
+        else return false;
     }
 
     public void addMethod (String class_name, String method_name, String type) {
@@ -58,10 +60,9 @@ public class SymbolTable {
         }
 
         MethodContents child_method_contents = child_class_contents.methods.get(method_name);
-        //String child_return_type = child_method_contents.return_type;
+
 
         ClassContents current_class_contents = child_class_contents;
-        //System.out.println("method : " + method_name + " Parent: " + current_class_contents.getParentClass());
         //for every parent class make an override check
 
         //boolean override = false;
@@ -69,7 +70,7 @@ public class SymbolTable {
         while (current_class_contents.getParentClass()!=null) {
             current_class_contents = symbol_table.get(current_class_contents.parent_class);
 
-            //System.out.println("method : " + method_name + " Parent: " + current_class_contents.getParentClass());
+
             MethodContents current_method_contents = current_class_contents.methods.get(method_name);
 
             //if function doesn't exist in parent class, then no override problem
@@ -112,7 +113,6 @@ public class SymbolTable {
         for (Map.Entry<String, ClassContents> class_entry : symbol_table.entrySet()) {
             String class_key = class_entry.getKey();
             ClassContents current_class_contents = class_entry.getValue();
-            //System.out.println("class = " + class_key);
 
             if (current_class_contents.parent_class==null) {
                 fields_offset_sum = 0; methods_offset_sum = 0;
@@ -132,19 +132,25 @@ public class SymbolTable {
                     case "int[]":
                         current_offset = 8;
                         break;
+                    case "boolean[]":
+                        current_offset = 8;
+                        break;
                     default:
+                        //TODO
                         //System.err.println("wrong type: " + current_field_type);
                         //System.exit(1);
                         current_offset = 8;
                 }
-                fields_offset_sum = current_offset + fields_offset_sum;
                 System.out.println(class_key + '.' + field_key + " : " + fields_offset_sum);
+                fields_offset_sum += current_offset;
             }
             for (Map.Entry<String, MethodContents> method_entry : current_class_contents.methods.entrySet()) {
                 String method_key = method_entry.getKey();
                 MethodContents current_method_contents = method_entry.getValue();
-                methods_offset_sum += 8;
-                if (!current_method_contents.override_method) System.out.println(class_key + '.' + method_key + " : " + methods_offset_sum);
+                if (!current_method_contents.override_method) {
+                    System.out.println(class_key + '.' + method_key + " : " + methods_offset_sum);
+                    methods_offset_sum += 8;
+                }
             }
         }
     }
@@ -152,7 +158,6 @@ public class SymbolTable {
     public String getTypeofIdentifier (String id, String class_name, String method_name) {
         ClassContents class_contents = symbol_table.get(class_name);
         if (class_contents == null) {
-            System.out.println("gettype");
             System.err.println("Cannot find class " + class_name + " in symbol table");
             System.exit(1);
         }
@@ -175,10 +180,10 @@ public class SymbolTable {
         return "";
     }
 
+    //add parameters in a method
     public boolean addParameters (String class_name, String method_name, String param_type, String param_name) {
         ClassContents content = symbol_table.get(class_name);
         if (content == null) {
-            System.out.println("addParameters");
             System.err.println("Cannot find class " + class_name + " in symbol table");
             System.exit(1);
         }
@@ -190,7 +195,6 @@ public class SymbolTable {
     public String getReturnType (String class_name, String method_name) {
         ClassContents content = symbol_table.get(class_name);
         if (content == null) {
-            System.out.println("getReturn");
             System.err.println("Cannot find class " + class_name + " in symbol table");
             System.exit(1);
         }
@@ -238,29 +242,24 @@ class ClassContents {
     }
 
     public boolean VarAdd (String type, String member_name) {
-        if (fieldsContains(member_name)) {
-            System.out.println("tha epistrepsw false sto mikro");
-            return true;
-        }
-        fields.put (member_name, type);
-        return true;
+        if (fields.putIfAbsent (member_name, type) == null) return true;
+        else return false;
     }
 
     public boolean VarAdd (String method_name, String type, String member_name) {
-        MethodContents contents = methods.get(method_name);
-        if (contents==null) {
-            System.out.println("tha epistrepsw false sto megalo");
-            return true;
+        MethodContents method_contents = methods.get(method_name);
+        if (method_contents==null) {
+            System.err.println("Method " + method_name + " isn't declared.");
+            return false;
         }
-        contents.variablesAdd (type, member_name);
-        return VarAdd (type, member_name);
+        return method_contents.variablesAdd (type, member_name);
     }
 
     public boolean newMethod (String method_name, String return_type) {
         if (methodsContains(method_name)) return false;
         MethodContents content = new MethodContents (method_name, return_type);
-        methods.put (method_name, content);
-        return true;
+        if (methods.putIfAbsent (method_name, content) == null) return true;
+        else return false;
     }
 
     public boolean addParameters (String method_name, String param_type, String param_name) {
@@ -268,7 +267,7 @@ class ClassContents {
         //if function doesn't exist in parent class, then no override problem
 
         if (method_contents==null) {
-            System.out.println(method_name +"null contents");
+            System.err.println("Method " + method_name + " isn't declared.");
             return false;
         }
         method_contents.parametersAdd (param_type, param_name);
@@ -304,21 +303,13 @@ class MethodContents {
         return variables.containsKey(name);
     }
 
-    public void parametersAdd (String type, String name) {
-        parameters.put (name, type);
+    public boolean parametersAdd (String type, String name) {
+        if (parameters.putIfAbsent (name, type) == null) return true;
+        else return false;
     }
 
-    public void variablesAdd (String type, String name) {
-        variables.put (name, type);
-    }
-
-    public void sameParameters (MethodContents contents) {
-        // //Preconditions.checkState(map1.size() == map2.size());
-        // Iterator iter1 = fields.entrySet().iterator();
-        // Iterator iter2 = contents.fields.entrySet().iterator();
-        // while(iter1.hasNext() || iter2.hasNext()) {
-        //     // Entry e1 = iter1.next();
-        //     // Entry e2 = iter2.next();
-        // }
+    public boolean variablesAdd (String type, String name) {
+        if (variables.putIfAbsent (name, type) == null) return true;
+        else return false;
     }
 }
