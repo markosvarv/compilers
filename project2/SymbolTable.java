@@ -10,10 +10,13 @@ public class SymbolTable {
     //add a field in the class
     public boolean addVar (String class_name, String type, String member_name) {
         ClassContents contents = symbol_table.get(class_name);
-        if (contents==null) return false;
+        if (contents==null) {
+            System.err.println("Class " + class_name + " already exists!");
+            return false;
+        }
         if (!contents.VarAdd (type, member_name)) {
-            System.err.println ("member " + member_name + " has already been declared");
-            System.exit(1);
+            System.err.println ("Variable " + member_name + " has already been declared in class " + class_name);
+            return false;
         }
         return true;
     }
@@ -21,88 +24,77 @@ public class SymbolTable {
     //add a variable in a function in the class
     public boolean addVar (String class_name, String method_name, String type, String member_name) {
         ClassContents contents = symbol_table.get(class_name);
-        if (contents==null) return false;
-        if (!contents.VarAdd (method_name, type, member_name)) {
-            System.err.println ("member " + member_name + " has already been declared");
-            System.exit(1);
+        if (contents==null) {
+            System.err.println("Class " + class_name + " already exists!");
+            return false;
+        }
+        return contents.VarAdd (method_name, type, member_name);
+    }
+
+    public boolean newClass (String class_name, String parent_class) {
+        if (symbol_table.putIfAbsent (class_name, new ClassContents (class_name, parent_class)) == null) return true;
+        else return false;
+    }
+
+    public boolean addMethod (String class_name, String method_name, String type) {
+        ClassContents content = symbol_table.get(class_name);
+        if (content == null) {
+            System.err.println("Cannot find class " + class_name + " in symbol table.");
+            return false;
+        }
+        if (!content.newMethod (method_name, type)) {
+            System.err.println("Method " + method_name + " already exists.");
+            return false;
         }
         return true;
     }
 
-    public boolean containsClass (String class_name) {
-        return symbol_table.containsKey(class_name);
-    }
-
-    public boolean newClass (String class_name, String parent_class) {
-        if (containsClass(class_name)) return false;
-        ClassContents content = new ClassContents (class_name, parent_class);
-        if (symbol_table.putIfAbsent (class_name, content) == null) return true;
-        else return false;
-    }
-
-    public void addMethod (String class_name, String method_name, String type) {
+    //add parameters in a method
+    public boolean addParameters (String class_name, String method_name, String param_type, String param_name) {
         ClassContents content = symbol_table.get(class_name);
         if (content == null) {
-            System.err.println("cannot find class " + class_name + " in symbol table.");
-            System.exit(1);
+            System.err.println("Cannot find class " + class_name + " in symbol table");
+            return false;
         }
-        if (!content.newMethod (method_name, type)) {
-            System.err.println("method " + method_name + " already exists!");
-            System.exit(1);
-        }
+        return content.addParameters (method_name, param_type, param_name);
     }
 
     public boolean overrideCheck (String class_name, String method_name, String return_type) {
         ClassContents child_class_contents = symbol_table.get(class_name);
         if (child_class_contents == null) {
             System.err.println("Cannot find class " + class_name + " in symbol table");
-            System.exit(1);
+            return false;
         }
 
         MethodContents child_method_contents = child_class_contents.methods.get(method_name);
-
-
         ClassContents current_class_contents = child_class_contents;
+
         //for every parent class make an override check
-
-        //boolean override = false;
-
         while (current_class_contents.getParentClass()!=null) {
             current_class_contents = symbol_table.get(current_class_contents.parent_class);
-
-
             MethodContents current_method_contents = current_class_contents.methods.get(method_name);
 
             //if function doesn't exist in parent class, then no override problem
-            if (current_method_contents==null) {
-                //System.out.println(method_name + " null contents");
-                continue;
-            }
-            //if function exists, then must have the same return type and parameters
+            if (current_method_contents==null) continue;
+
+            //if function exists, then must have the same return type and parameter types
             if (!return_type.equals(current_method_contents.getReturnType())) {
-                System.err.println ("overriding methods must have the same return type");
-                //System.out.println ("name = " + method_name + " type = " + return_type);
-                System.exit(1);
+                System.err.println ("Overriding methods must have the same return type");
+                return false;
             }
 
             if (current_method_contents.parameters.size() != child_method_contents.parameters.size()){
-                System.err.println ("overriding methods must have the same number of parameters");
-                System.exit(1);
+                System.err.println ("Overriding methods must have the same number of parameters");
+                return false;
             }
 
-            for (Map.Entry<String, String> entry1 : current_method_contents.parameters.entrySet()) {
-                String key = entry1.getKey();
-                String value1 = entry1.getValue();
-                String value2 = child_method_contents.parameters.get(key);
-
-                if (!value1.equals(value2)) {
-                    System.err.println("Overriding methods must have the same type of parameters");
-                    System.exit(1);
-                }
+            if (!current_method_contents.parameters.values().containsAll(child_method_contents.parameters.values())) {
+                System.err.println("Overriding method " + current_method_contents.method_name + " don't have the same type of parameters in classes " + current_class_contents.class_name + " and " + child_class_contents.class_name);
+                return false;
             }
-            child_method_contents.override_method = true;
+            //TODO: check if there is a need to make true also parent flag
+            //child_method_contents.override_method = true;
         }
-        //child_method_contents.override_method = true;
         return true;
     }
 
@@ -180,18 +172,6 @@ public class SymbolTable {
         return "";
     }
 
-    //add parameters in a method
-    public boolean addParameters (String class_name, String method_name, String param_type, String param_name) {
-        ClassContents content = symbol_table.get(class_name);
-        if (content == null) {
-            System.err.println("Cannot find class " + class_name + " in symbol table");
-            System.exit(1);
-        }
-
-        content.addParameters (method_name, param_type, param_name);
-        return true;
-    }
-
     public String getReturnType (String class_name, String method_name) {
         ClassContents content = symbol_table.get(class_name);
         if (content == null) {
@@ -214,6 +194,10 @@ public class SymbolTable {
         }
         return false;
     }
+
+    public boolean containsClass (String class_name) {
+        return symbol_table.containsKey(class_name);
+    }
 }
 
 class ClassContents {
@@ -233,14 +217,6 @@ class ClassContents {
         parent_class = given_parent_class;
     }
 
-    public boolean fieldsContains (String member_name) {
-        return fields.containsKey(member_name);
-    }
-
-    public boolean methodsContains (String name) {
-        return methods.containsKey(name);
-    }
-
     public boolean VarAdd (String type, String member_name) {
         if (fields.putIfAbsent (member_name, type) == null) return true;
         else return false;
@@ -256,9 +232,7 @@ class ClassContents {
     }
 
     public boolean newMethod (String method_name, String return_type) {
-        if (methodsContains(method_name)) return false;
-        MethodContents content = new MethodContents (method_name, return_type);
-        if (methods.putIfAbsent (method_name, content) == null) return true;
+        if (methods.putIfAbsent (method_name, new MethodContents (method_name, return_type)) == null) return true;
         else return false;
     }
 
@@ -270,9 +244,20 @@ class ClassContents {
             System.err.println("Method " + method_name + " isn't declared.");
             return false;
         }
-        method_contents.parametersAdd (param_type, param_name);
-        return true;
+        if (method_contents.parametersAdd (param_type, param_name)) return true;
+        else {
+            System.err.println("Parameter " + param_name + " already exists in method " + method_name);
+            return false;
+        }
     }
+
+//    public boolean fieldsContains (String member_name) {
+//        return fields.containsKey(member_name);
+//    }
+//
+//    public boolean methodsContains (String name) {
+//        return methods.containsKey(name);
+//    }
 }
 
 class MethodContents {
@@ -291,25 +276,33 @@ class MethodContents {
         override_method = false;
     }
 
-    public String getReturnType () {
-        return return_type;
-    }
-
-    public boolean parametersContains (String name) {
-        return parameters.containsKey(name);
-    }
-
-    public boolean variablesContains (String name) {
-        return variables.containsKey(name);
-    }
-
     public boolean parametersAdd (String type, String name) {
         if (parameters.putIfAbsent (name, type) == null) return true;
         else return false;
     }
 
     public boolean variablesAdd (String type, String name) {
+        if (parameters.containsKey(name)) {
+            System.err.println("Variable " + name + " is already declared as a parameter in method " + method_name);
+            return false;
+        }
+
         if (variables.putIfAbsent (name, type) == null) return true;
-        else return false;
+        else {
+            System.err.println ("Variable " + name + " is already declared in method " + method_name);
+            return false;
+        }
     }
+
+    public String getReturnType () {
+        return return_type;
+    }
+
+//    public boolean parametersContains (String name) {
+//        return parameters.containsKey(name);
+//    }
+//
+//    public boolean variablesContains (String name) {
+//        return variables.containsKey(name);
+//    }
 }

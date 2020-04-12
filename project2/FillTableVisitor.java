@@ -18,9 +18,8 @@ public class FillTableVisitor extends GJDepthFirst<String, SymbolTable>{
     public String visit(ClassDeclaration n, SymbolTable symbol_table){
         String classname = n.f1.accept(this, symbol_table);
 
-
         if (!symbol_table.newClass(classname, null)) {
-            System.err.println("class " + classname + " already exists!");
+            System.err.println("Class " + classname + " already exists!");
             System.exit(1);
         }
 
@@ -48,11 +47,11 @@ public class FillTableVisitor extends GJDepthFirst<String, SymbolTable>{
         String parentclass = n.f3.accept(this, symbol_table);
 
         if (!symbol_table.containsClass(parentclass)) {
-            System.err.println("parent class doesn't exist!");
+            System.err.println("Parent class " + parentclass + " doesn't exist!");
             System.exit(1);
         }
         if (!symbol_table.newClass(classname, parentclass)) {
-            System.err.println("class already exists!");
+            System.err.println("Class " + classname + " already exists!");
             System.exit(1);
         }
 
@@ -76,8 +75,18 @@ public class FillTableVisitor extends GJDepthFirst<String, SymbolTable>{
 
         if (main_class) return null;
 
-        if (class_var) symbol_table.addVar (current_class, type, var);
-        else symbol_table.addVar (current_class, current_method, type, var);
+        if (class_var) {
+            if (!symbol_table.addVar (current_class, type, var)){
+                System.err.println("Error while adding variable " + var + " in class " + current_class);
+                System.exit(1);
+            }
+        }
+        else {
+            if (!symbol_table.addVar (current_class, current_method, type, var)) {
+                System.err.println("Error while adding variable " + var + " in method " + current_method);
+                System.exit(1);
+            }
+        }
 
         return null;
     }
@@ -104,7 +113,10 @@ public class FillTableVisitor extends GJDepthFirst<String, SymbolTable>{
         //System.out.println(type + ' ' + method_name + ' ' + current_class);
 
 
-        symbol_table.addMethod(current_class, method_name, type);
+        if (!symbol_table.addMethod(current_class, method_name, type)) {
+            System.err.println("Error while adding method " + method_name + " in class " + current_class);
+            System.exit(1);
+        }
         current_method = method_name;
 
         class_var = false;
@@ -113,11 +125,14 @@ public class FillTableVisitor extends GJDepthFirst<String, SymbolTable>{
 
         //System.out.println("current_class = " + current_class);
 
-        symbol_table.overrideCheck (current_class, method_name, type);
+        if (!symbol_table.overrideCheck (current_class, method_name, type)){
+            System.err.println("Error while adding overriding method " + method_name + " in class " + current_class);
+            System.exit(1);
+        }
 
         n.f7.accept(this, symbol_table);
-        //n.f8.accept(this, symbol_table);
-        //n.f10.accept(this, symbol_table);
+        n.f8.accept(this, symbol_table);
+        n.f10.accept(this, symbol_table);
         return null;
     }
 
@@ -131,8 +146,20 @@ public class FillTableVisitor extends GJDepthFirst<String, SymbolTable>{
 
         //System.out.println('\t' + type + ' ' + var);
 
-        symbol_table.addParameters (current_class, current_method, type, param);
+        if (!symbol_table.addParameters (current_class, current_method, type, param)) {
+            System.err.println("Error encountered while adding parameter " + param + " in method " + current_method);
+            System.exit(1);
+        }
         return null;
+    }
+
+    /**
+     * f0 -> "boolean"
+     * f1 -> "["
+     * f2 -> "]"
+     */
+    public String visit(BooleanArrayType n, SymbolTable symbol_table) {
+        return "boolean[]";
     }
 
     /**

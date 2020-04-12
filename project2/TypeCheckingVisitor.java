@@ -365,13 +365,13 @@ public class TypeCheckingVisitor extends GJDepthFirst<String, SymbolTable>{
      * f3 -> Expression()
      * f4 -> "]"
      */
-    public String visit(ArrayAllocationExpression n, SymbolTable symbol_table) {
-        String expr = n.f3.accept(this, symbol_table);
-        if (!expr.equals("int")) {
-            System.err.println("expected integer type for array allocation");
-            System.exit(1);
-        }
-
-        return "int[]";
-    }
+//    public String visit(ArrayAllocationExpression n, SymbolTable symbol_table) {
+        //String expr = n.f3.accept(this, symbol_table);
+//        if (!expr.equals("int")) {
+//            System.err.println("expected integer type for array allocation");
+//            System.exit(1);
+//        }
+//
+//        return "int[]";
+//    }
 }
