@@ -112,7 +112,6 @@ public class FillTableVisitor extends GJDepthFirst<String, SymbolTable>{
 
         //System.out.println(type + ' ' + method_name + ' ' + current_class);
 
-
         if (!symbol_table.addMethod(current_class, method_name, type)) {
             System.err.println("Error while adding method " + method_name + " in class " + current_class);
             System.exit(1);

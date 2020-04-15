@@ -67,6 +67,10 @@ public class SymbolTable {
         }
 
         MethodContents child_method_contents = child_class_contents.methods.get(method_name);
+        if (child_method_contents == null) {
+            System.err.println("Cannot find method " + method_name + " in class " + class_name);
+            return false;
+        }
         ClassContents current_class_contents = child_class_contents;
 
         //for every parent class make an override check
@@ -93,7 +97,7 @@ public class SymbolTable {
                 return false;
             }
             //TODO: check if there is a need to make true also parent flag
-            //child_method_contents.override_method = true;
+            child_method_contents.override_method = true;
         }
         return true;
     }
@@ -206,15 +210,15 @@ class ClassContents {
     String class_name;
     String parent_class;
 
-    public String getParentClass () {
-        return parent_class;
-    }
-
     public ClassContents (String given_class_name, String given_parent_class) {
         fields = new LinkedHashMap<String, String>();
         methods = new LinkedHashMap<String, MethodContents>();
         class_name = given_class_name;
         parent_class = given_parent_class;
+    }
+
+    public String getParentClass () {
+        return parent_class;
     }
 
     public boolean VarAdd (String type, String member_name) {
@@ -238,7 +242,6 @@ class ClassContents {
 
     public boolean addParameters (String method_name, String param_type, String param_name) {
         MethodContents method_contents = methods.get(method_name);
-        //if function doesn't exist in parent class, then no override problem
 
         if (method_contents==null) {
             System.err.println("Method " + method_name + " isn't declared.");
