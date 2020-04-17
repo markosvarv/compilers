@@ -31,8 +31,8 @@ public class SymbolTable {
         return contents.VarAdd (method_name, type, member_name);
     }
 
-    public boolean newClass (String class_name, String parent_class) {
-        if (symbol_table.putIfAbsent (class_name, new ClassContents (class_name, parent_class)) == null) return true;
+    public boolean newClass (String class_name, String parent_class, boolean is_main) {
+        if (symbol_table.putIfAbsent (class_name, new ClassContents (class_name, parent_class, is_main)) == null) return true;
         else return false;
     }
 
@@ -104,16 +104,25 @@ public class SymbolTable {
 
 
     public void printOffsets () {
-        int fields_offset_sum = 0;
-        int methods_offset_sum = 0;
         for (Map.Entry<String, ClassContents> class_entry : symbol_table.entrySet()) {
             String class_key = class_entry.getKey();
             ClassContents current_class_contents = class_entry.getValue();
+            if (!current_class_contents.is_main) System.out.println("\n-----Class: " + current_class_contents.class_name + "-----");
 
             if (current_class_contents.parent_class==null) {
-                fields_offset_sum = 0; methods_offset_sum = 0;
+                current_class_contents.fields_offset_sum = 0;
+                current_class_contents.methods_offset_sum = 0;
             }
-
+            else {
+                ClassContents parent_class_contents = symbol_table.get(current_class_contents.parent_class);
+                if (parent_class_contents == null) {
+                    System.out.println("Cannot find parent class");
+                    return;
+                }
+                current_class_contents.fields_offset_sum = parent_class_contents.fields_offset_sum;
+                current_class_contents.methods_offset_sum = parent_class_contents.methods_offset_sum;
+            }
+            if (!current_class_contents.is_main) System.out.println("--Variables--");
             for (Map.Entry<String, String> field_entry : current_class_contents.fields.entrySet()) {
                 String field_key = field_entry.getKey();
                 String current_field_type = field_entry.getValue();
@@ -137,15 +146,17 @@ public class SymbolTable {
                         //System.exit(1);
                         current_offset = 8;
                 }
-                System.out.println(class_key + '.' + field_key + " : " + fields_offset_sum);
-                fields_offset_sum += current_offset;
+                System.out.println(class_key + '.' + field_key + " : " + current_class_contents.fields_offset_sum);
+                current_class_contents.fields_offset_sum += current_offset;
             }
+            if (!current_class_contents.is_main) System.out.println("---Methods---");
             for (Map.Entry<String, MethodContents> method_entry : current_class_contents.methods.entrySet()) {
                 String method_key = method_entry.getKey();
                 MethodContents current_method_contents = method_entry.getValue();
+                if (current_class_contents.is_main) continue; //for Main class
                 if (!current_method_contents.override_method) {
-                    System.out.println(class_key + '.' + method_key + " : " + methods_offset_sum);
-                    methods_offset_sum += 8;
+                    System.out.println(class_key + '.' + method_key + " : " + current_class_contents.methods_offset_sum);
+                    current_class_contents.methods_offset_sum += 8;
                 }
             }
         }
@@ -155,14 +166,14 @@ public class SymbolTable {
         ClassContents class_contents = symbol_table.get(class_name);
         if (class_contents == null) {
             System.err.println("Cannot find class " + class_name + " in symbol table");
-            System.exit(1);
+            return null;
         }
         if (class_contents.fields.containsKey(id)) return class_contents.fields.get(id);
 
         MethodContents method_contents = class_contents.methods.get(method_name);
         if (method_contents == null) {
             System.err.println("Cannot find method " + method_name + " in class " + class_name);
-            System.exit(1);
+            return null;
         }
 
         if (method_contents.parameters.containsKey(id)) return method_contents.parameters.get(id);
@@ -209,12 +220,16 @@ class ClassContents {
     LinkedHashMap <String, MethodContents> methods;
     String class_name;
     String parent_class;
+    boolean is_main;
+    int fields_offset_sum;
+    int methods_offset_sum;
 
-    public ClassContents (String given_class_name, String given_parent_class) {
+    public ClassContents (String given_class_name, String given_parent_class, boolean main_class) {
         fields = new LinkedHashMap<String, String>();
         methods = new LinkedHashMap<String, MethodContents>();
         class_name = given_class_name;
         parent_class = given_parent_class;
+        is_main = main_class;
     }
 
     public String getParentClass () {

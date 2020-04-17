@@ -7,6 +7,41 @@ public class TypeCheckingVisitor extends GJDepthFirst<String, SymbolTable>{
 
     private boolean class_var;
 
+
+    /**
+     * f0 -> "class"
+     * f1 -> Identifier()
+     * f2 -> "{"
+     * f3 -> "public"
+     * f4 -> "static"
+     * f5 -> "void"
+     * f6 -> "main"
+     * f7 -> "("
+     * f8 -> "String"
+     * f9 -> "["
+     * f10 -> "]"
+     * f11 -> Identifier()
+     * f12 -> ")"
+     * f13 -> "{"
+     * f14 -> ( VarDeclaration() )*
+     * f15 -> ( Statement() )*
+     * f16 -> "}"
+     * f17 -> "}"
+     */
+    public String visit(MainClass n, SymbolTable symbol_table) {
+        String main_class_name = n.f1.accept(this, symbol_table);
+
+        current_class = main_class_name;
+        current_method = "main";
+        class_var = false;
+
+        //n.f11.accept(this, argu);
+        n.f14.accept(this, symbol_table);
+        n.f15.accept(this, symbol_table);
+        return null;
+    }
+
+
     /**
      * f0 -> "class"
      * f1 -> Identifier()
@@ -204,7 +239,7 @@ public class TypeCheckingVisitor extends GJDepthFirst<String, SymbolTable>{
         if (pr_expr1 == null || pr_expr2 == null) return null;
 
         if (!pr_expr1.equals("int") || !pr_expr2.equals("int")) {
-            System.err.println("expected integer type for < operator");
+            System.err.println("Cannot apply < operator between " + pr_expr1 + " and " + pr_expr2);
             System.exit(1);
         }
 
@@ -224,7 +259,7 @@ public class TypeCheckingVisitor extends GJDepthFirst<String, SymbolTable>{
         if (pr_expr1 == null || pr_expr2 == null) return null;
 
         if (!pr_expr1.equals("int") || !pr_expr2.equals("int")) {
-            System.err.println("expected integer type for + operator");
+            System.err.println("Cannot apply + operator between " + pr_expr1 + " and " + pr_expr2);
             System.exit(1);
         }
         return "int";
@@ -239,7 +274,7 @@ public class TypeCheckingVisitor extends GJDepthFirst<String, SymbolTable>{
         String pr_expr1 = n.f0.accept(this, symbol_table);
         String pr_expr2 = n.f2.accept(this, symbol_table);
         if (!pr_expr1.equals("int") || !pr_expr2.equals("int")) {
-            System.err.println("expected integer type for - operator");
+            System.err.println("Cannot apply - operator between " + pr_expr1 + " and " + pr_expr2);
             System.exit(1);
         }
         return "int";
@@ -256,7 +291,7 @@ public class TypeCheckingVisitor extends GJDepthFirst<String, SymbolTable>{
 
         String pr_expr2 = n.f2.accept(this, symbol_table);
         if (!pr_expr1.equals("int") || !pr_expr2.equals("int")) {
-            System.err.println("expected integer type for * operator");
+            System.err.println("Cannot apply * operator between " + pr_expr1 + " and " + pr_expr2);
             System.exit(1);
         }
 
@@ -311,16 +346,24 @@ public class TypeCheckingVisitor extends GJDepthFirst<String, SymbolTable>{
      */
     public String visit(PrimaryExpression n, SymbolTable symbol_table) {
         String expression = n.f0.accept(this, symbol_table);
-        if (expression==null) return null;
+
+        //System.out.println("primary expression = " + expression);
+
+        if (expression==null) {
+            //System.out.println("Current class = " + current_class + " current_method = " + current_method);
+            return null;
+        }
         if (expression.equals("int")) {
             return "int";
         } else if (expression.equals("true") || expression.equals("false")) {
-
             return "boolean";
         } else if (expression.equals("this")) {
             return this.current_class;
+        } else {
+            String id_type = symbol_table.getTypeofIdentifier (expression, current_class, current_method);
+            if (id_type==null) return "undefined";
+            else return id_type;
         }
-        return "undefined";
     }
 
     /**
@@ -374,4 +417,23 @@ public class TypeCheckingVisitor extends GJDepthFirst<String, SymbolTable>{
 //
 //        return "int[]";
 //    }
+
+    /**
+     * f0 -> "new"
+     * f1 -> Identifier()
+     * f2 -> "("
+     * f3 -> ")"
+     */
+    public String visit(AllocationExpression n, SymbolTable symbol_table) {
+        String allocation_class = n.f1.accept(this, symbol_table);
+
+        if (symbol_table.containsClass(allocation_class)) return null;
+        else {
+            System.out.println("Couldn't find allocation class " + allocation_class);
+            System.exit(1);
+        }
+
+        return null;
+    }
+
 }

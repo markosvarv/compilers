@@ -17,13 +17,12 @@ class Main {
         	try{
         	    fis = new FileInputStream(current_input);
         	    MiniJavaParser parser = new MiniJavaParser(fis);
-
-                //TypeCheckingVisitor type_ch = new TypeCheckingVisitor();
-        	    Goal root = parser.Goal();
-				//System.out.println("Program parsed successfully.");
 				FillTableVisitor eval = new FillTableVisitor();
+                TypeCheckingVisitor type_ch = new TypeCheckingVisitor();
+        	    Goal root = parser.Goal();
+				System.out.println("Program parsed successfully.");
 				root.accept(eval, symbol_table);
-                //root.accept(type_ch, symbol_table);
+                root.accept(type_ch, symbol_table);
                 symbol_table.printOffsets();
         	}
             catch(ParseException ex){

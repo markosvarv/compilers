@@ -4,8 +4,51 @@ import visitor.GJDepthFirst;
 public class FillTableVisitor extends GJDepthFirst<String, SymbolTable>{
     private String current_class;
     private String current_method;
-    private boolean main_class = true;
     private boolean class_var;
+
+
+    /**
+     * f0 -> "class"
+     * f1 -> Identifier()
+     * f2 -> "{"
+     * f3 -> "public"
+     * f4 -> "static"
+     * f5 -> "void"
+     * f6 -> "main"
+     * f7 -> "("
+     * f8 -> "String"
+     * f9 -> "["
+     * f10 -> "]"
+     * f11 -> Identifier()
+     * f12 -> ")"
+     * f13 -> "{"
+     * f14 -> ( VarDeclaration() )*
+     * f15 -> ( Statement() )*
+     * f16 -> "}"
+     * f17 -> "}"
+     */
+    public String visit(MainClass n, SymbolTable symbol_table) {
+        String main_class_name = n.f1.accept(this, symbol_table);
+        if (!symbol_table.newClass(main_class_name, null, true)) {
+            System.err.println("Class " + main_class_name + " already exists!");
+            System.exit(1);
+        }
+
+        current_class = main_class_name;
+        current_method = "main";
+        class_var = false;
+
+        if (!symbol_table.addMethod(main_class_name, "main", "void")) {
+            System.err.println("Error while adding main methond in main class");
+            System.exit(1);
+        }
+
+        //n.f11.accept(this, argu);
+        n.f14.accept(this, symbol_table);
+        n.f15.accept(this, symbol_table);
+        return null;
+    }
+
 
     /**
      * f0 -> "class"
@@ -18,12 +61,11 @@ public class FillTableVisitor extends GJDepthFirst<String, SymbolTable>{
     public String visit(ClassDeclaration n, SymbolTable symbol_table){
         String classname = n.f1.accept(this, symbol_table);
 
-        if (!symbol_table.newClass(classname, null)) {
+        if (!symbol_table.newClass(classname, null, false)) {
             System.err.println("Class " + classname + " already exists!");
             System.exit(1);
         }
 
-        main_class = false;
         current_class = classname;
         class_var = true;
         n.f3.accept(this, symbol_table);
@@ -50,12 +92,11 @@ public class FillTableVisitor extends GJDepthFirst<String, SymbolTable>{
             System.err.println("Parent class " + parentclass + " doesn't exist!");
             System.exit(1);
         }
-        if (!symbol_table.newClass(classname, parentclass)) {
+        if (!symbol_table.newClass(classname, parentclass, false)) {
             System.err.println("Class " + classname + " already exists!");
             System.exit(1);
         }
 
-        main_class = false;
         current_class = classname;
         class_var = true;
 
@@ -72,8 +113,6 @@ public class FillTableVisitor extends GJDepthFirst<String, SymbolTable>{
     public String visit(VarDeclaration n, SymbolTable symbol_table) {
         String type = n.f0.accept(this, symbol_table);
         String var = n.f1.accept(this, symbol_table);
-
-        if (main_class) return null;
 
         if (class_var) {
             if (!symbol_table.addVar (current_class, type, var)){
