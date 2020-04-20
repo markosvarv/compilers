@@ -188,20 +188,23 @@ public class SymbolTable {
         return "";
     }
 
-    public String getReturnType (String class_name, String method_name) {
-        ClassContents content = symbol_table.get(class_name);
-        if (content == null) {
-            System.err.println("Cannot find class " + class_name + " in symbol table");
-            System.exit(1);
-        }
-
-        MethodContents method_contents = content.methods.get(method_name);
-        return method_contents.return_type;
-    }
+//    public String getReturnType (String class_name, String method_name) {
+//        ClassContents content = symbol_table.get(class_name);
+//        if (content == null) {
+//            System.err.println("Cannot find class " + class_name + " in symbol table");
+//            System.exit(1);
+//        }
+//
+//        MethodContents method_contents = content.methods.get(method_name);
+//        return method_contents.return_type;
+//    }
 
     public boolean isParentType (String class_name, String type) {
         ClassContents class_contents = symbol_table.get(class_name);
-        if (class_contents == null) return false;
+        if (class_contents == null) {
+            System.err.println("Cannot find class " + class_name + " in symbol table");
+            return false;
+        }
 
         while (class_contents.parent_class != null) {
             if (class_contents.parent_class.equals(type)) return true;

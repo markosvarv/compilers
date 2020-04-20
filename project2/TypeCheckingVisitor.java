@@ -101,7 +101,6 @@ public class TypeCheckingVisitor extends GJDepthFirst<String, SymbolTable>{
      */
     public String visit(MethodDeclaration n, SymbolTable symbol_table){
         String declaration_return_type = n.f1.accept(this, symbol_table);
-        System.out.println("declaration return type = " + declaration_return_type);
         String method_name = n.f2.accept(this, symbol_table);
         current_method = method_name;
 
@@ -171,25 +170,31 @@ public class TypeCheckingVisitor extends GJDepthFirst<String, SymbolTable>{
     public String visit(AssignmentStatement n, SymbolTable symbol_table) {
         String identifier = n.f0.accept(this, symbol_table);
         String id_type = symbol_table.getTypeofIdentifier(identifier, current_class, current_method);
-        if (id_type.equals("")) {
+        if (id_type.equals("") || id_type == null) {
             System.err.println("Cannot determine the type of identifier " + identifier);
             System.exit(1);
         }
 
         String expr_type = n.f2.accept(this, symbol_table);
-
-        if (expr_type == null) return null;
+        if (expr_type == null) {
+            System.out.println("Expression type in assignment is null");
+            System.exit(1);
+        }
 
         //if the identifier has the same type with the exrpession, then everything ok
         if (expr_type.equals(id_type)) return null;
 
         boolean valid_assignment = false;
-        if (!id_type.equals("int") && !id_type.equals("int[]") && !id_type.equals("boolean") &&
-                !expr_type.equals("int") && !expr_type.equals("int[]") && !expr_type.equals("boolean")) {
+        if (!id_type.equals("int") && !id_type.equals("int[]") && !id_type.equals("boolean") && !id_type.equals("boolean[]") &&
+                !expr_type.equals("int") && !expr_type.equals("int[]") && !expr_type.equals("boolean") && !expr_type.equals("boolean[]")) {
             if (!symbol_table.isParentType(expr_type, id_type)) {
                 System.err.println ("Cannot assign " + expr_type + " to " + id_type + ". Assignment is not valid.");
                 System.exit(1);
             }
+        }
+        else {
+            System.err.println ("Cannot assign " + expr_type + " to " + id_type + ". Assignment is not valid.");
+            System.exit(1);
         }
         return null;
     }
@@ -354,7 +359,7 @@ public class TypeCheckingVisitor extends GJDepthFirst<String, SymbolTable>{
      */
     public String visit(ArrayLookup n, SymbolTable symbol_table) {
         String pr_expr_type = n.f0.accept(this, symbol_table);
-        if (!pr_expr_type.equals("int[]")) {
+        if (!pr_expr_type.equals("int[]") && !pr_expr_type.equals("boolean[]")) {
             System.err.println("Cannot apply array lookup to " + pr_expr_type);
             System.exit(1);
         }
@@ -373,7 +378,7 @@ public class TypeCheckingVisitor extends GJDepthFirst<String, SymbolTable>{
      */
     public String visit(ArrayLength n, SymbolTable symbol_table) {
         String pr_expr_type = n.f0.accept(this, symbol_table);
-        if (!pr_expr_type.equals("int[]")) {
+        if (!pr_expr_type.equals("int[]") && !pr_expr_type.equals("boolean[]")) {
             System.err.println("Cannot apply .length to " + pr_expr_type);
             System.exit(1);
         }
@@ -408,7 +413,10 @@ public class TypeCheckingVisitor extends GJDepthFirst<String, SymbolTable>{
             return this.current_class;
         } else {
             String id_type = symbol_table.getTypeofIdentifier (expression, current_class, current_method);
-            if (id_type==null) return "undefined";
+            if (id_type==null || id_type.equals("")) {
+                System.err.println("Cannot determine the type " + id_type);
+                return "undefined";
+            }
             else return id_type;
         }
     }
