@@ -163,14 +163,13 @@ public class SymbolTable {
     }
 
     public String getTypeofIdentifier (String id, String class_name, String method_name) {
-        ClassContents class_contents = symbol_table.get(class_name);
-        if (class_contents == null) {
+        ClassContents current_class_contents = symbol_table.get(class_name);
+        if (current_class_contents == null) {
             System.err.println("Cannot find class " + class_name + " in symbol table");
             return null;
         }
-        if (class_contents.fields.containsKey(id)) return class_contents.fields.get(id);
 
-        MethodContents method_contents = class_contents.methods.get(method_name);
+        MethodContents method_contents = current_class_contents.methods.get(method_name);
         if (method_contents == null) {
             System.err.println("Cannot find method " + method_name + " in class " + class_name);
             return null;
@@ -179,10 +178,12 @@ public class SymbolTable {
         if (method_contents.parameters.containsKey(id)) return method_contents.parameters.get(id);
         if (method_contents.variables.containsKey(id)) return method_contents.variables.get(id);
 
-        while (class_contents.parent_class != null) {
-            ClassContents parent_contents = symbol_table.get(class_contents.parent_class);
-            if (parent_contents.fields.containsKey(id)) return parent_contents.fields.get(id);
-            class_contents = parent_contents;
+        if (current_class_contents.fields.containsKey(id)) return current_class_contents.fields.get(id);
+
+        //search for the variable in parent classes
+        while (current_class_contents.parent_class != null){
+            current_class_contents = symbol_table.get(current_class_contents.parent_class);
+            if (current_class_contents.fields.containsKey(id)) return current_class_contents.fields.get(id);
         }
         return "";
     }

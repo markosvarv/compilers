@@ -5,7 +5,7 @@ public class TypeCheckingVisitor extends GJDepthFirst<String, SymbolTable>{
     private String current_class;
     private String current_method;
 
-    private boolean class_var;
+    //private boolean class_var;
 
 
     /**
@@ -33,7 +33,7 @@ public class TypeCheckingVisitor extends GJDepthFirst<String, SymbolTable>{
 
         current_class = main_class_name;
         current_method = "main";
-        class_var = false;
+        //class_var = false;
 
         //n.f11.accept(this, argu);
         n.f14.accept(this, symbol_table);
@@ -100,25 +100,66 @@ public class TypeCheckingVisitor extends GJDepthFirst<String, SymbolTable>{
      * f12 -> "}"
      */
     public String visit(MethodDeclaration n, SymbolTable symbol_table){
-        //String type = n.f1.accept(this, symbol_table);
+        String declaration_return_type = n.f1.accept(this, symbol_table);
+        System.out.println("declaration return type = " + declaration_return_type);
         String method_name = n.f2.accept(this, symbol_table);
         current_method = method_name;
 
         n.f8.accept(this, symbol_table);
 
-        String table_return_type = symbol_table.getReturnType(current_class, current_method);
+        //String table_return_type = symbol_table.getReturnType(current_class, current_method);
         String actual_return_type = n.f10.accept(this, symbol_table);
 
         if (actual_return_type==null) return null;
 
-        if (!actual_return_type.equals(table_return_type)) {
-            System.err.println ("method " + method_name + " returns " + actual_return_type + ", while method is declared to return " + table_return_type);
+        if (!actual_return_type.equals(declaration_return_type)) {
+            System.err.println ("method " + method_name + " returns " + actual_return_type + ", while method is declared to return " + declaration_return_type);
             System.exit(1);
         }
 
-        class_var = false;
+        //class_var = false;
 
         return null;
+    }
+
+    /**
+     * f0 -> "boolean"
+     * f1 -> "["
+     * f2 -> "]"
+     */
+    public String visit(BooleanArrayType n, SymbolTable symbol_table) {
+        return "boolean[]";
+    }
+
+    /**
+     * f0 -> "int"
+     * f1 -> "["
+     * f2 -> "]"
+     */
+    public String visit(ArrayType n, SymbolTable symbol_table) {
+        return "int[]";
+    }
+
+    /**
+     * f0 -> "boolean"
+     */
+    public String visit(BooleanType n, SymbolTable symbol_table) {
+        return "boolean";
+    }
+
+    /**
+     * f0 -> "int"
+     */
+    public String visit(IntegerType n, SymbolTable symbol_table) {
+        return "int";
+    }
+
+    /**
+     * f0 -> <IDENTIFIER>
+     */
+    public String visit(Identifier n, SymbolTable symbol_table) {
+        return n.f0.toString();
+        //return "int";
     }
 
     /**
@@ -206,8 +247,11 @@ public class TypeCheckingVisitor extends GJDepthFirst<String, SymbolTable>{
     public String visit(AndExpression n, SymbolTable symbol_table) {
         String clause1 = n.f0.accept(this, symbol_table);
         String clause2 = n.f2.accept(this, symbol_table);
+
+        if (clause1==null || clause2==null) System.out.println("clause1 = " + clause1 + " and clause2 = " + clause2);
+
         if (!clause1.equals("boolean") || !clause2.equals("boolean")) {
-            System.err.println("expected boolean types for logical and operator");
+            System.err.println("Cannot apply && operator between " + clause1 + " and " + clause2);
             System.exit(1);
         }
         return "boolean";
@@ -236,7 +280,10 @@ public class TypeCheckingVisitor extends GJDepthFirst<String, SymbolTable>{
         String pr_expr1 = n.f0.accept(this, symbol_table);
         String pr_expr2 = n.f2.accept(this, symbol_table);
 
-        if (pr_expr1 == null || pr_expr2 == null) return null;
+        if (pr_expr1 == null || pr_expr2 == null) {
+            System.out.println("pr_expr1 = " + pr_expr1 + " pr_expr2 = " + pr_expr2);
+            return null;
+        }
 
         if (!pr_expr1.equals("int") || !pr_expr2.equals("int")) {
             System.err.println("Cannot apply < operator between " + pr_expr1 + " and " + pr_expr2);
@@ -355,7 +402,7 @@ public class TypeCheckingVisitor extends GJDepthFirst<String, SymbolTable>{
         }
         if (expression.equals("int")) {
             return "int";
-        } else if (expression.equals("true") || expression.equals("false")) {
+        } else if (expression.equals("true") || expression.equals("false") || expression.equals("boolean")) {
             return "boolean";
         } else if (expression.equals("this")) {
             return this.current_class;
@@ -387,12 +434,6 @@ public class TypeCheckingVisitor extends GJDepthFirst<String, SymbolTable>{
         return "false";
     }
 
-    /**
-     * f0 -> <IDENTIFIER>
-     */
-    public String visit(Identifier n, SymbolTable symbol_table) {
-        return n.f0.toString();
-    }
 
     /**
      * f0 -> "this"
@@ -436,4 +477,12 @@ public class TypeCheckingVisitor extends GJDepthFirst<String, SymbolTable>{
         return null;
     }
 
+    /**
+     * f0 -> "("
+     * f1 -> Expression()
+     * f2 -> ")"
+     */
+    public String visit(BracketExpression n, SymbolTable symbol_table) {
+        return n.f1.accept(this, symbol_table);
+    }
 }
