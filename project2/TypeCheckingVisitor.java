@@ -409,27 +409,23 @@ public class TypeCheckingVisitor extends GJDepthFirst<String, SymbolTable>{
         LinkedList<String> parameter_types = symbol_table.getParameterTypes(pr_expr, id);
         if (parameter_types == null) System.exit(1);
 
-        if (argument_list.equals(parameter_types)) {
-            String ret_type = symbol_table.getReturnType(pr_expr, id);
-            if (ret_type==null) System.exit(1);
-            argument_list = null;
-            return ret_type;
-        }
-        else {
-            Iterator<String> parameters_it = parameter_types.iterator();
-            Iterator<String> arguments_it = argument_list.iterator();
-            while (parameters_it.hasNext() && arguments_it.hasNext()) {
-                if (symbol_table.isParentType(arguments_it.next(), parameters_it.next())){
-                    String ret_type = symbol_table.getReturnType(pr_expr, id);
-                    if (ret_type==null) System.exit(1);
-                    argument_list = null;
-                    return ret_type;
-                }
+        Iterator<String> arguments_it = argument_list.iterator();
+        Iterator<String> parameters_it = parameter_types.iterator();
+        while (parameters_it.hasNext() && arguments_it.hasNext()) {
+            if (!arguments_it.next().equals(parameters_it.next()) && !symbol_table.isParentType(arguments_it.next(), parameters_it.next())){
+                System.err.println("Method " + id + " is called with different arguments than declared");
+                System.exit(1);
             }
         }
-        System.err.println("Method " + id + " is called with different arguments than declared");
-        System.exit(1);
-        return null;
+        if (parameters_it.hasNext() || arguments_it.hasNext()) {
+            System.err.println("Parameter size is different from argument size");
+            System.exit(1);
+        }
+
+        String ret_type = symbol_table.getReturnType(pr_expr, id);
+        if (ret_type==null) System.exit(1);
+        argument_list = null;
+        return ret_type;
     }
 
     /**
