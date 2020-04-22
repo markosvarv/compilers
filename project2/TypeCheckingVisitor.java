@@ -1,9 +1,11 @@
+import java.util.*;
 import syntaxtree.*;
 import visitor.GJDepthFirst;
 
 public class TypeCheckingVisitor extends GJDepthFirst<String, SymbolTable>{
     private String current_class;
     private String current_method;
+    private LinkedList<String> argument_list;
 
     //private boolean class_var;
 
@@ -33,6 +35,7 @@ public class TypeCheckingVisitor extends GJDepthFirst<String, SymbolTable>{
 
         current_class = main_class_name;
         current_method = "main";
+        argument_list = null;
         //class_var = false;
 
         //n.f11.accept(this, argu);
@@ -158,7 +161,6 @@ public class TypeCheckingVisitor extends GJDepthFirst<String, SymbolTable>{
      */
     public String visit(Identifier n, SymbolTable symbol_table) {
         return n.f0.toString();
-        //return "int";
     }
 
     /**
@@ -211,7 +213,7 @@ public class TypeCheckingVisitor extends GJDepthFirst<String, SymbolTable>{
     public String visit(IfStatement n, SymbolTable symbol_table) {
         String expression = n.f2.accept(this, symbol_table);
 
-        if (expression == null) return null;
+//        if (expression == null) return null;
 
         if (!expression.equals("boolean")) {
             System.err.println("expected boolean type for if expression");
@@ -233,7 +235,7 @@ public class TypeCheckingVisitor extends GJDepthFirst<String, SymbolTable>{
     public String visit(WhileStatement n, SymbolTable symbol_table) {
         String expression = n.f2.accept(this, symbol_table);
 
-        if (expression == null) return null;
+//        if (expression == null) return null;
 
         if (!expression.equals("boolean")) {
             System.err.println("expected boolean type for while expression");
@@ -244,7 +246,6 @@ public class TypeCheckingVisitor extends GJDepthFirst<String, SymbolTable>{
     }
 
     /**
-     * Grammar production:
      * f0 -> Clause()
      * f1 -> "&&"
      * f2 -> Clause()
@@ -252,8 +253,6 @@ public class TypeCheckingVisitor extends GJDepthFirst<String, SymbolTable>{
     public String visit(AndExpression n, SymbolTable symbol_table) {
         String clause1 = n.f0.accept(this, symbol_table);
         String clause2 = n.f2.accept(this, symbol_table);
-
-        if (clause1==null || clause2==null) System.out.println("clause1 = " + clause1 + " and clause2 = " + clause2);
 
         if (!clause1.equals("boolean") || !clause2.equals("boolean")) {
             System.err.println("Cannot apply && operator between " + clause1 + " and " + clause2);
@@ -285,10 +284,10 @@ public class TypeCheckingVisitor extends GJDepthFirst<String, SymbolTable>{
         String pr_expr1 = n.f0.accept(this, symbol_table);
         String pr_expr2 = n.f2.accept(this, symbol_table);
 
-        if (pr_expr1 == null || pr_expr2 == null) {
-            System.out.println("pr_expr1 = " + pr_expr1 + " pr_expr2 = " + pr_expr2);
-            return null;
-        }
+//        if (pr_expr1 == null || pr_expr2 == null) {
+//            System.out.println("pr_expr1 = " + pr_expr1 + " pr_expr2 = " + pr_expr2);
+//            return null;
+//        }
 
         if (!pr_expr1.equals("int") || !pr_expr2.equals("int")) {
             System.err.println("Cannot apply < operator between " + pr_expr1 + " and " + pr_expr2);
@@ -308,7 +307,7 @@ public class TypeCheckingVisitor extends GJDepthFirst<String, SymbolTable>{
         String pr_expr1 = n.f0.accept(this, symbol_table);
         String pr_expr2 = n.f2.accept(this, symbol_table);
 
-        if (pr_expr1 == null || pr_expr2 == null) return null;
+        //if (pr_expr1 == null || pr_expr2 == null) return null;
 
         if (!pr_expr1.equals("int") || !pr_expr2.equals("int")) {
             System.err.println("Cannot apply + operator between " + pr_expr1 + " and " + pr_expr2);
@@ -387,6 +386,73 @@ public class TypeCheckingVisitor extends GJDepthFirst<String, SymbolTable>{
 
 
     /**
+     * f0 -> PrimaryExpression()
+     * f1 -> "."
+     * f2 -> Identifier()
+     * f3 -> "("
+     * f4 -> ( ExpressionList() )?
+     * f5 -> ")"
+     */
+    public String visit(MessageSend n, SymbolTable symbol_table) {
+        String pr_expr = n.f0.accept(this, symbol_table);
+        String id = n.f2.accept(this, symbol_table);
+
+        //System.out.println("pr_expr = " + pr_expr + " id = " + id);
+
+        argument_list = new LinkedList<String>();
+
+        n.f4.accept(this, symbol_table);
+
+        //System.out.println("parameters list = " + symbol_table.getParameterTypes(pr_expr, id));
+        //System.out.println("arguments list = " + argument_list);
+
+        LinkedList<String> parameter_types = symbol_table.getParameterTypes(pr_expr, id);
+        if (parameter_types == null) System.exit(1);
+
+        if (argument_list.equals(parameter_types)) {
+            String ret_type = symbol_table.getReturnType(pr_expr, id);
+            if (ret_type==null) System.exit(1);
+            argument_list = null;
+            return ret_type;
+        }
+        else {
+            Iterator<String> parameters_it = parameter_types.iterator();
+            Iterator<String> arguments_it = argument_list.iterator();
+            while (parameters_it.hasNext() && arguments_it.hasNext()) {
+                if (symbol_table.isParentType(arguments_it.next(), parameters_it.next())){
+                    String ret_type = symbol_table.getReturnType(pr_expr, id);
+                    if (ret_type==null) System.exit(1);
+                    argument_list = null;
+                    return ret_type;
+                }
+            }
+        }
+        System.err.println("Method " + id + " is called with different arguments than declared");
+        System.exit(1);
+        return null;
+    }
+
+    /**
+     * f0 -> Expression()
+     * f1 -> ExpressionTail()
+     */
+    public String visit(ExpressionList n, SymbolTable symbol_table) {
+        argument_list.add(n.f0.accept(this, symbol_table));
+        n.f1.accept(this, symbol_table);
+        return null;
+    }
+
+    /**
+     * f0 -> ","
+     * f1 -> Expression()
+     */
+    public String visit(ExpressionTerm n, SymbolTable symbol_table) {
+        argument_list.add(n.f1.accept(this, symbol_table));
+        return null;
+    }
+
+
+    /**
      * f0 -> IntegerLiteral()
      * | TrueLiteral()
      * | FalseLiteral()
@@ -402,19 +468,21 @@ public class TypeCheckingVisitor extends GJDepthFirst<String, SymbolTable>{
         //System.out.println("primary expression = " + expression);
 
         if (expression==null) {
-            //System.out.println("Current class = " + current_class + " current_method = " + current_method);
+            System.out.println("Primary expression is null. Current class = " + current_class + " current_method = " + current_method);
             return null;
         }
-        if (expression.equals("int")) {
-            return "int";
-        } else if (expression.equals("true") || expression.equals("false") || expression.equals("boolean")) {
+        if (expression.equals("int") || expression.equals("boolean") || expression.equals("int[]") || expression.equals("boolean[]"))
+            return expression;
+        else if (expression.equals("true") || expression.equals("false"))
             return "boolean";
-        } else if (expression.equals("this")) {
+        else if (expression.equals("this"))
             return this.current_class;
-        } else {
+        else if (symbol_table.containsClass(expression))
+            return expression;
+        else { //it's an identifier
             String id_type = symbol_table.getTypeofIdentifier (expression, current_class, current_method);
             if (id_type==null || id_type.equals("")) {
-                System.err.println("Cannot determine the type " + id_type);
+                System.err.println("Cannot determine the type of " + expression);
                 return "undefined";
             }
             else return id_type;
@@ -450,6 +518,23 @@ public class TypeCheckingVisitor extends GJDepthFirst<String, SymbolTable>{
         return "this";
     }
 
+
+    /**
+     * f0 -> "new"
+     * f1 -> "boolean"
+     * f2 -> "["
+     * f3 -> Expression()
+     * f4 -> "]"
+     */
+    public String visit(BooleanArrayAllocationExpression n, SymbolTable symbol_table) {
+        String expr = n.f3.accept(this, symbol_table);
+        if (!expr.equals("boolean")) {
+            System.err.println("expected boolean type for array allocation");
+            System.exit(1);
+        }
+        return "boolean[]";
+    }
+
     /**
      * f0 -> "new"
      * f1 -> "int"
@@ -457,15 +542,15 @@ public class TypeCheckingVisitor extends GJDepthFirst<String, SymbolTable>{
      * f3 -> Expression()
      * f4 -> "]"
      */
-//    public String visit(ArrayAllocationExpression n, SymbolTable symbol_table) {
-        //String expr = n.f3.accept(this, symbol_table);
-//        if (!expr.equals("int")) {
-//            System.err.println("expected integer type for array allocation");
-//            System.exit(1);
-//        }
-//
-//        return "int[]";
-//    }
+    public String visit(IntegerArrayAllocationExpression n, SymbolTable symbol_table) {
+        String expr = n.f3.accept(this, symbol_table);
+        if (!expr.equals("int")) {
+            System.err.println("expected integer type for array allocation");
+            System.exit(1);
+        }
+        return "int[]";
+    }
+
 
     /**
      * f0 -> "new"
@@ -476,13 +561,12 @@ public class TypeCheckingVisitor extends GJDepthFirst<String, SymbolTable>{
     public String visit(AllocationExpression n, SymbolTable symbol_table) {
         String allocation_class = n.f1.accept(this, symbol_table);
 
-        if (symbol_table.containsClass(allocation_class)) return null;
+        if (symbol_table.containsClass(allocation_class)) return allocation_class;
         else {
             System.out.println("Couldn't find allocation class " + allocation_class);
             System.exit(1);
         }
-
-        return null;
+        return allocation_class;
     }
 
     /**

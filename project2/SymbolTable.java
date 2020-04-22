@@ -87,15 +87,14 @@ public class SymbolTable {
                 return false;
             }
 
-            if (current_method_contents.parameters.size() != child_method_contents.parameters.size()){
-                System.err.println ("Overriding methods must have the same number of parameters");
+            LinkedList<String> current_contents_list = new LinkedList<String>(current_method_contents.parameters.values());
+            LinkedList<String> child_contents_list = new LinkedList<String>(child_method_contents.parameters.values());
+
+            if (!current_contents_list.equals(child_contents_list)) {
+                System.err.println("Overriding method " + current_method_contents.method_name + " must have the same type and number of parameters in classes " + current_class_contents.class_name + " and " + child_class_contents.class_name);
                 return false;
             }
 
-            if (!current_method_contents.parameters.values().containsAll(child_method_contents.parameters.values())) {
-                System.err.println("Overriding method " + current_method_contents.method_name + " don't have the same type of parameters in classes " + current_class_contents.class_name + " and " + child_class_contents.class_name);
-                return false;
-            }
             //TODO: check if there is a need to make true also parent flag
             child_method_contents.override_method = true;
         }
@@ -188,16 +187,46 @@ public class SymbolTable {
         return "";
     }
 
-//    public String getReturnType (String class_name, String method_name) {
-//        ClassContents content = symbol_table.get(class_name);
-//        if (content == null) {
-//            System.err.println("Cannot find class " + class_name + " in symbol table");
-//            System.exit(1);
-//        }
-//
-//        MethodContents method_contents = content.methods.get(method_name);
-//        return method_contents.return_type;
-//    }
+    public LinkedList<String> getParameterTypes (String class_name, String method_name){
+        ClassContents class_contents = symbol_table.get(class_name);
+        if (class_contents == null) {
+            System.err.println("Cannot find class " + class_name + " in symbol table");
+            return null;
+        }
+
+        MethodContents method_contents = class_contents.methods.get(method_name);
+
+        if (method_contents != null) return new LinkedList<String>(method_contents.parameters.values());
+
+        while (class_contents.parent_class!=null) {
+            class_contents = symbol_table.get(class_contents.parent_class);
+            method_contents = class_contents.methods.get(method_name);
+            if (method_contents != null) return new LinkedList<String>(method_contents.parameters.values());
+        }
+
+        System.err.println("Cannot find method " + method_name + " in class " + class_name + " and parent classes");
+        return null;
+    }
+
+    public String getReturnType (String class_name, String method_name) {
+        ClassContents class_contents = symbol_table.get(class_name);
+        if (class_contents == null) {
+            System.err.println("Cannot find class " + class_name + " in symbol table");
+            return null;
+        }
+
+        MethodContents method_contents = class_contents.methods.get(method_name);
+        if (method_contents != null) return method_contents.return_type;
+
+        while (class_contents.parent_class!=null) {
+            class_contents = symbol_table.get(class_contents.parent_class);
+            method_contents = class_contents.methods.get(method_name);
+            if (method_contents != null) return method_contents.return_type;
+        }
+
+        System.err.println("Cannot find method " + method_name + " in class " + class_name + " and parent classes");
+        return null;
+    }
 
     public boolean isParentType (String class_name, String type) {
         ClassContents class_contents = symbol_table.get(class_name);
