@@ -200,12 +200,13 @@ public class FillTableVisitor extends GJDepthFirst<String, SymbolTable>{
         return "boolean[]";
     }
 
+
     /**
      * f0 -> "int"
      * f1 -> "["
      * f2 -> "]"
      */
-    public String visit(ArrayType n, SymbolTable symbol_table) {
+    public String visit(IntegerArrayType n, SymbolTable symbol_table) {
         return "int[]";
     }
 

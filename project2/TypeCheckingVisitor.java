@@ -586,7 +586,7 @@ public class TypeCheckingVisitor extends GJDepthFirst<String, SymbolTable>{
     public String visit(BooleanArrayAllocationExpression n, SymbolTable symbol_table) {
         String expr = n.f3.accept(this, symbol_table);
         if (!expr.equals("int")) {
-            System.err.println("expected boolean type for array allocation");
+            System.err.println("Array intex type is " + expr + ", not int");
             System.exit(1);
         }
         return "boolean[]";
@@ -602,7 +602,7 @@ public class TypeCheckingVisitor extends GJDepthFirst<String, SymbolTable>{
     public String visit(IntegerArrayAllocationExpression n, SymbolTable symbol_table) {
         String expr = n.f3.accept(this, symbol_table);
         if (!expr.equals("int")) {
-            System.err.println("expected integer type for array allocation");
+            System.err.println("Array intex type is " + expr + ", not int");
             System.exit(1);
         }
         return "int[]";
