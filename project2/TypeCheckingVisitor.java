@@ -40,7 +40,7 @@ public class TypeCheckingVisitor extends GJDepthFirst<String, SymbolTable>{
         //class_var = false;
 
         n.f11.accept(this, symbol_table);
-        //n.f14.accept(this, symbol_table);
+        n.f14.accept(this, symbol_table);
         n.f15.accept(this, symbol_table);
         return null;
     }
@@ -59,7 +59,7 @@ public class TypeCheckingVisitor extends GJDepthFirst<String, SymbolTable>{
 
         current_class = classname;
         // class_var = true;
-        //n.f3.accept(this, symbol_table);
+        n.f3.accept(this, symbol_table);
         n.f4.accept(this, symbol_table);
         return null;
     }
@@ -82,8 +82,21 @@ public class TypeCheckingVisitor extends GJDepthFirst<String, SymbolTable>{
         current_class = classname;
         // class_var = true;
 
-        //n.f5.accept(this, symbol_table);
+        n.f5.accept(this, symbol_table);
         n.f6.accept(this, symbol_table);
+        return null;
+    }
+
+    /**
+     * f0 -> Type()
+     * f1 -> Identifier()
+     * f2 -> ";"
+     */
+    public String visit(VarDeclaration n, SymbolTable symbol_table) throws Exception {
+        String type = n.f0.accept(this, symbol_table);
+        String var = n.f1.accept(this, symbol_table);
+        if (!type.equals("int") && !type.equals("boolean") && !type.equals("int[]") && !type.equals("boolean[]") && !symbol_table.containsClass(type))
+            throw new Exception("Unknown type " + type + " of var " + var);
         return null;
     }
 
@@ -108,13 +121,29 @@ public class TypeCheckingVisitor extends GJDepthFirst<String, SymbolTable>{
         String method_name = n.f2.accept(this, symbol_table);
         current_method = method_name;
 
-        //n.f7.accept(this, symbol_table);
+        n.f4.accept(this, symbol_table);
+
+        n.f7.accept(this, symbol_table);
         n.f8.accept(this, symbol_table);
 
         String actual_return_type = n.f10.accept(this, symbol_table);
         if (!actual_return_type.equals(declaration_return_type))
             throw new Exception("Method " + method_name + " returns " + actual_return_type + ", while is declared to return " + declaration_return_type);
         //class_var = false;
+        return null;
+    }
+
+    /**
+     * f0 -> Type()
+     * f1 -> Identifier()
+     */
+    public String visit(FormalParameter n, SymbolTable symbol_table) throws Exception {
+        String type = n.f0.accept(this, symbol_table);
+        String param = n.f1.accept(this, symbol_table);
+
+        if (!type.equals("int") && !type.equals("boolean") && !type.equals("int[]") && !type.equals("boolean[]") && !symbol_table.containsClass(type))
+            throw new Exception("Unknown type " + type + " of var " + param);
+
         return null;
     }
 
