@@ -141,8 +141,6 @@ public class FillTableVisitor extends GJDepthFirst<String, SymbolTable> {
         String type = n.f1.accept(this, symbol_table);
         String method_name = n.f2.accept(this, symbol_table);
 
-        //System.out.println(type + ' ' + method_name + ' ' + current_class);
-
         if (!symbol_table.addMethod(current_class, method_name, type))
             throw new Exception("Cannot add method " + method_name + " in class " + current_class);
         current_method = method_name;
@@ -150,8 +148,6 @@ public class FillTableVisitor extends GJDepthFirst<String, SymbolTable> {
         class_var = false;
 
         n.f4.accept(this, symbol_table);
-
-        //System.out.println("current_class = " + current_class);
 
         if (!symbol_table.overrideCheck (current_class, method_name, type))
             throw new Exception("Cannot add overriding method " + method_name + " in class " + current_class);
@@ -169,8 +165,6 @@ public class FillTableVisitor extends GJDepthFirst<String, SymbolTable> {
     public String visit(FormalParameter n, SymbolTable symbol_table) throws Exception {
         String type = n.f0.accept(this, symbol_table);
         String param = n.f1.accept(this, symbol_table);
-
-        //System.out.println('\t' + type + ' ' + var);
 
         if (!symbol_table.addParameters (current_class, current_method, type, param))
             throw new Exception("Cannot add parameter " + param + " in method " + current_method);

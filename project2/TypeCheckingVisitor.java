@@ -7,8 +7,6 @@ public class TypeCheckingVisitor extends GJDepthFirst<String, SymbolTable>{
     private String current_method;
     private Stack<String> argument_stack;
 
-    //private boolean class_var;
-
 
     /**
      * f0 -> "class"
@@ -37,8 +35,6 @@ public class TypeCheckingVisitor extends GJDepthFirst<String, SymbolTable>{
         current_method = "main";
         argument_stack = new Stack<String>();
 
-        //class_var = false;
-
         n.f11.accept(this, symbol_table);
         n.f14.accept(this, symbol_table);
         n.f15.accept(this, symbol_table);
@@ -58,7 +54,6 @@ public class TypeCheckingVisitor extends GJDepthFirst<String, SymbolTable>{
         String classname = n.f1.accept(this, symbol_table);
 
         current_class = classname;
-        // class_var = true;
         n.f3.accept(this, symbol_table);
         n.f4.accept(this, symbol_table);
         return null;
@@ -80,7 +75,6 @@ public class TypeCheckingVisitor extends GJDepthFirst<String, SymbolTable>{
         String parentclass = n.f3.accept(this, symbol_table);
 
         current_class = classname;
-        // class_var = true;
 
         n.f5.accept(this, symbol_table);
         n.f6.accept(this, symbol_table);
@@ -127,9 +121,8 @@ public class TypeCheckingVisitor extends GJDepthFirst<String, SymbolTable>{
         n.f8.accept(this, symbol_table);
 
         String actual_return_type = n.f10.accept(this, symbol_table);
-        if (!actual_return_type.equals(declaration_return_type))
+        if (!actual_return_type.equals(declaration_return_type) && !symbol_table.isParentType(actual_return_type, declaration_return_type))
             throw new Exception("Method " + method_name + " returns " + actual_return_type + ", while is declared to return " + declaration_return_type);
-        //class_var = false;
         return null;
     }
 
@@ -161,7 +154,7 @@ public class TypeCheckingVisitor extends GJDepthFirst<String, SymbolTable>{
      * f1 -> "["
      * f2 -> "]"
      */
-    public String visit(ArrayType n, SymbolTable symbol_table) throws Exception {
+    public String visit(IntegerArrayType n, SymbolTable symbol_table) throws Exception {
         return "int[]";
     }
 
@@ -290,8 +283,7 @@ public class TypeCheckingVisitor extends GJDepthFirst<String, SymbolTable>{
      */
     public String visit(PrintStatement n, SymbolTable symbol_table) throws Exception {
         String expr = n.f2.accept(this, symbol_table);
-        if (!expr.equals("int") && !expr.equals("boolean"))
-            throw new Exception("Print statement expected int or boolean, but got " + expr);
+        if (!expr.equals("int")) throw new Exception("Print statement expected int, but got " + expr);
         return null;
     }
 
@@ -420,7 +412,6 @@ public class TypeCheckingVisitor extends GJDepthFirst<String, SymbolTable>{
         String pr_expr = n.f0.accept(this, symbol_table);
         String id = n.f2.accept(this, symbol_table);
 
-        //System.out.println("pr_expr = " + pr_expr + " id = " + id);
         MethodContents method_contents = symbol_table.getMethodContents (pr_expr, id);
         if (method_contents==null) throw new Exception("Cannot get method " + id + " contents");
         LinkedList<String> parameter_types = method_contents.getParameterTypes();
@@ -428,18 +419,12 @@ public class TypeCheckingVisitor extends GJDepthFirst<String, SymbolTable>{
         n.f4.accept(this, symbol_table);
         LinkedList<String> argument_list = new LinkedList<String>();
 
-        //System.out.println("argument stack = " + argument_stack);
-
         if (!argument_stack.empty() && !argument_stack.peek().equals("(")) {
             do argument_list.addFirst(argument_stack.pop());
             while (!argument_stack.peek().equals("("));
             String lparen = argument_stack.pop();
             if (!lparen.equals("(")) throw new Exception("Unexpected error in message send stack");
         }
-        //System.out.println("parameters list = " + symbol_table.getParameterTypes(pr_expr, id));
-        //System.out.println("arguments list = " + argument_list);
-
-        //System.out.println("current class = " + current_class + " current method = " + current_method);
 
         Iterator<String> arguments_it = argument_list.iterator();
         Iterator<String> parameters_it = parameter_types.iterator();
