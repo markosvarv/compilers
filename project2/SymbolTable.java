@@ -94,8 +94,6 @@ public class SymbolTable {
                 System.err.println("Overriding method " + current_method_contents.method_name + " must have the same type and number of parameters in classes " + current_class_contents.class_name + " and " + child_class_contents.class_name);
                 return false;
             }
-
-            //TODO: check if there is a need to make true also parent flag
             child_method_contents.override_method = true;
         }
         return true;
@@ -140,9 +138,6 @@ public class SymbolTable {
                         current_offset = 8;
                         break;
                     default:
-                        //TODO
-                        //System.err.println("wrong type: " + current_field_type);
-                        //System.exit(1);
                         current_offset = 8;
                 }
                 System.out.println(class_key + '.' + field_key + " : " + current_class_contents.fields_offset_sum);
@@ -281,14 +276,6 @@ class ClassContents {
             return false;
         }
     }
-
-//    public boolean fieldsContains (String member_name) {
-//        return fields.containsKey(member_name);
-//    }
-//
-//    public boolean methodsContains (String name) {
-//        return methods.containsKey(name);
-//    }
 }
 
 class MethodContents {

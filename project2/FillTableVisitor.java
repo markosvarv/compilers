@@ -39,9 +39,15 @@ public class FillTableVisitor extends GJDepthFirst<String, SymbolTable> {
         if (!symbol_table.addMethod(main_class_name, "main", "void"))
             throw new Exception("Cannot add main methond in main class");
 
-        //n.f11.accept(this, argu);
+        //exceptional case
+        if (!symbol_table.addVar (main_class_name, "main", "String[]", n.f11.accept(this, symbol_table)))
+            throw new Exception("Cannot add main args in symbol table");
+
         n.f14.accept(this, symbol_table);
         n.f15.accept(this, symbol_table);
+
+
+
         return null;
     }
 
