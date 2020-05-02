@@ -187,7 +187,7 @@ public class SymbolTable {
         return "";
     }
 
-    public LinkedList<String> getParameterTypes (String class_name, String method_name){
+    public MethodContents getMethodContents (String class_name, String method_name){
         ClassContents class_contents = symbol_table.get(class_name);
         if (class_contents == null) {
             System.err.println("Cannot find class " + class_name + " in symbol table");
@@ -196,32 +196,12 @@ public class SymbolTable {
 
         MethodContents method_contents = class_contents.methods.get(method_name);
 
-        if (method_contents != null) return new LinkedList<String>(method_contents.parameters.values());
+        if (method_contents != null) return method_contents;
 
         while (class_contents.parent_class!=null) {
             class_contents = symbol_table.get(class_contents.parent_class);
             method_contents = class_contents.methods.get(method_name);
-            if (method_contents != null) return new LinkedList<String>(method_contents.parameters.values());
-        }
-
-        System.err.println("Cannot find method " + method_name + " in class " + class_name + " and parent classes");
-        return null;
-    }
-
-    public String getReturnType (String class_name, String method_name) {
-        ClassContents class_contents = symbol_table.get(class_name);
-        if (class_contents == null) {
-            System.err.println("Cannot find class " + class_name + " in symbol table");
-            return null;
-        }
-
-        MethodContents method_contents = class_contents.methods.get(method_name);
-        if (method_contents != null) return method_contents.return_type;
-
-        while (class_contents.parent_class!=null) {
-            class_contents = symbol_table.get(class_contents.parent_class);
-            method_contents = class_contents.methods.get(method_name);
-            if (method_contents != null) return method_contents.return_type;
+            if (method_contents != null) return method_contents;
         }
 
         System.err.println("Cannot find method " + method_name + " in class " + class_name + " and parent classes");
@@ -349,11 +329,7 @@ class MethodContents {
         return return_type;
     }
 
-//    public boolean parametersContains (String name) {
-//        return parameters.containsKey(name);
-//    }
-//
-//    public boolean variablesContains (String name) {
-//        return variables.containsKey(name);
-//    }
+    public LinkedList<String> getParameterTypes() {
+        return new LinkedList<String>(parameters.values());
+    }
 }

@@ -392,9 +392,9 @@ public class TypeCheckingVisitor extends GJDepthFirst<String, SymbolTable>{
         String id = n.f2.accept(this, symbol_table);
 
         //System.out.println("pr_expr = " + pr_expr + " id = " + id);
-
-        LinkedList<String> parameter_types = symbol_table.getParameterTypes(pr_expr, id);
-        if (parameter_types == null) System.exit(1);
+        MethodContents method_contents = symbol_table.getMethodContents (pr_expr, id);
+        if (method_contents==null) throw new Exception("Error while getting method " + id + " contents");
+        LinkedList<String> parameter_types = method_contents.getParameterTypes();
 
         n.f4.accept(this, symbol_table);
         LinkedList<String> argument_list = new LinkedList<String>();
@@ -405,7 +405,7 @@ public class TypeCheckingVisitor extends GJDepthFirst<String, SymbolTable>{
             do argument_list.addFirst(argument_stack.pop());
             while (!argument_stack.peek().equals("("));
             String lparen = argument_stack.pop();
-            if (!lparen.equals("(")) throw new Exception("Unexpected error in message send");
+            if (!lparen.equals("(")) throw new Exception("Unexpected error in message send stack");
         }
         //System.out.println("parameters list = " + symbol_table.getParameterTypes(pr_expr, id));
         //System.out.println("arguments list = " + argument_list);
@@ -423,9 +423,7 @@ public class TypeCheckingVisitor extends GJDepthFirst<String, SymbolTable>{
         if (parameters_it.hasNext() || arguments_it.hasNext())
             throw new Exception("Parameter size is different from argument size");
 
-        String ret_type = symbol_table.getReturnType(pr_expr, id);
-        if (ret_type==null) System.exit(1);
-        return ret_type;
+        return method_contents.getReturnType();
     }
 
     /**
