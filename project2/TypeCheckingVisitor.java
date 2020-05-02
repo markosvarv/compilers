@@ -422,7 +422,7 @@ public class TypeCheckingVisitor extends GJDepthFirst<String, SymbolTable>{
 
         //System.out.println("pr_expr = " + pr_expr + " id = " + id);
         MethodContents method_contents = symbol_table.getMethodContents (pr_expr, id);
-        if (method_contents==null) throw new Exception("Error while getting method " + id + " contents");
+        if (method_contents==null) throw new Exception("Cannot get method " + id + " contents");
         LinkedList<String> parameter_types = method_contents.getParameterTypes();
 
         n.f4.accept(this, symbol_table);

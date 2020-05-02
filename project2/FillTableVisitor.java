@@ -37,7 +37,7 @@ public class FillTableVisitor extends GJDepthFirst<String, SymbolTable> {
         class_var = false;
 
         if (!symbol_table.addMethod(main_class_name, "main", "void"))
-            throw new Exception("Error while adding main methond in main class");
+            throw new Exception("Cannot add main methond in main class");
 
         //n.f11.accept(this, argu);
         n.f14.accept(this, symbol_table);
@@ -106,11 +106,11 @@ public class FillTableVisitor extends GJDepthFirst<String, SymbolTable> {
 
         if (class_var) {
             if (!symbol_table.addVar (current_class, type, var))
-                throw new Exception("Error while adding variable " + var + " in class " + current_class);
+                throw new Exception("Cannot add variable " + var + " in class " + current_class);
         }
         else {
             if (!symbol_table.addVar (current_class, current_method, type, var))
-                throw new Exception("Error while adding variable " + var + " in method " + current_method);
+                throw new Exception("Cannot add variable " + var + " in method " + current_method);
         }
 
         return null;
@@ -138,7 +138,7 @@ public class FillTableVisitor extends GJDepthFirst<String, SymbolTable> {
         //System.out.println(type + ' ' + method_name + ' ' + current_class);
 
         if (!symbol_table.addMethod(current_class, method_name, type))
-            throw new Exception("Error while adding method " + method_name + " in class " + current_class);
+            throw new Exception("Cannot add method " + method_name + " in class " + current_class);
         current_method = method_name;
 
         class_var = false;
@@ -148,7 +148,7 @@ public class FillTableVisitor extends GJDepthFirst<String, SymbolTable> {
         //System.out.println("current_class = " + current_class);
 
         if (!symbol_table.overrideCheck (current_class, method_name, type))
-            throw new Exception("Error while adding overriding method " + method_name + " in class " + current_class);
+            throw new Exception("Cannot add overriding method " + method_name + " in class " + current_class);
 
         n.f7.accept(this, symbol_table);
         n.f8.accept(this, symbol_table);
@@ -167,7 +167,7 @@ public class FillTableVisitor extends GJDepthFirst<String, SymbolTable> {
         //System.out.println('\t' + type + ' ' + var);
 
         if (!symbol_table.addParameters (current_class, current_method, type, param))
-            throw new Exception("Error encountered while adding parameter " + param + " in method " + current_method);
+            throw new Exception("Cannot add parameter " + param + " in method " + current_method);
         return null;
     }
 

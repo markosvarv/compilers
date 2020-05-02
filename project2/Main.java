@@ -26,7 +26,7 @@ class Main {
 					root.accept(type_ch, symbol_table);
                     symbol_table.printOffsets();
                 }catch (Exception exc) {
-					System.err.println(exc.getMessage());
+					System.err.println("Error: " + exc.getMessage());
 				}
 			}
             catch(ParseException ex){
