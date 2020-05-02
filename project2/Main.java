@@ -21,10 +21,14 @@ class Main {
                 TypeCheckingVisitor type_ch = new TypeCheckingVisitor();
         	    Goal root = parser.Goal();
 				System.out.println("Program parsed successfully.");
-				root.accept(eval, symbol_table);
-                root.accept(type_ch, symbol_table);
-                symbol_table.printOffsets();
-        	}
+				try {
+					root.accept(eval, symbol_table);
+					root.accept(type_ch, symbol_table);
+                    symbol_table.printOffsets();
+                }catch (Exception exc) {
+					System.err.println(exc.getMessage());
+				}
+			}
             catch(ParseException ex){
         	    System.out.println(ex.getMessage());
         	}
