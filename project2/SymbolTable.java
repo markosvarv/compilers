@@ -73,7 +73,7 @@ public class SymbolTable {
         }
         ClassContents current_class_contents = child_class_contents;
 
-        //for every parent class make an override checkgfg
+        //for every parent class make an override check
         while (current_class_contents.getParentClass()!=null) {
             current_class_contents = symbol_table.get(current_class_contents.parent_class);
             MethodContents current_method_contents = current_class_contents.methods.get(method_name);
