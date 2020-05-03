@@ -6,4 +6,4 @@ compile:
 	javac Main.java
 
 clean:
-	rm -f *.class *~
+	find . -type f -path "./*" -name "*.class" -exec rm -f {} \;

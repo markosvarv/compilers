@@ -1,5 +1,8 @@
+package visitors;
+
 import syntaxtree.*;
 import visitor.GJDepthFirst;
+import types.*;
 
 public class FillTableVisitor extends GJDepthFirst<String, SymbolTable> {
     private String current_class;

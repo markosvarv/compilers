@@ -1,6 +1,9 @@
+package visitors;
+
 import java.util.*;
 import syntaxtree.*;
 import visitor.GJDepthFirst;
+import types.*;
 
 public class TypeCheckingVisitor extends GJDepthFirst<String, SymbolTable>{
     private String current_class;

@@ -1,6 +1,8 @@
 import syntaxtree.*;
 import visitor.*;
 import java.io.*;
+import visitors.*;
+import types.*;
 
 class Main {
     public static void main (String [] args){
