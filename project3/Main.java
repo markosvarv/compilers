@@ -1,9 +1,11 @@
 import syntaxtree.*;
 import visitor.*;
 import java.io.*;
+import types.*;
+import visitors.*;
 
 class Main {
-    public static void main (String [] args){
+    public static void main (String [] args) throws Exception {
         if(args.length == 0){
             System.err.println("Usage: java [MainClassName] [file1] [file2] ... [fileN]");
             System.exit(1);
@@ -11,19 +13,19 @@ class Main {
         FileInputStream fis = null;
 
         for (String current_input : args) {
-            //SymbolTable symbol_table = new SymbolTable();
+            SymbolTable symbol_table = new SymbolTable();
             System.out.println("\nFile: " + current_input);
 
             try{
                 fis = new FileInputStream(current_input);
                 MiniJavaParser parser = new MiniJavaParser(fis);
-                LoweringVisitor ll_visitor = new LoweringVisitor();
+                LoweringVisitor ll_visitor = new LoweringVisitor(current_input);
                 //FillTableVisitor eval = new FillTableVisitor();
                 //TypeCheckingVisitor type_ch = new TypeCheckingVisitor();
                 Goal root = parser.Goal();
                 System.out.println("Program parsed successfully.");
                 try {
-                    root.accept(ll_visitor, "");
+                    root.accept(ll_visitor, symbol_table);
                     //root.accept(eval, symbol_table);
                     //root.accept(type_ch, symbol_table);
                     //symbol_table.printOffsets();
