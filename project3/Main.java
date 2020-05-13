@@ -19,15 +19,15 @@ class Main {
             try{
                 fis = new FileInputStream(current_input);
                 MiniJavaParser parser = new MiniJavaParser(fis);
+                FillTableVisitor eval = new FillTableVisitor();
+                TypeCheckingVisitor type_ch = new TypeCheckingVisitor();
                 LoweringVisitor ll_visitor = new LoweringVisitor(current_input);
-                //FillTableVisitor eval = new FillTableVisitor();
-                //TypeCheckingVisitor type_ch = new TypeCheckingVisitor();
                 Goal root = parser.Goal();
                 System.out.println("Program parsed successfully.");
                 try {
+                    root.accept(eval, symbol_table);
+                    root.accept(type_ch, symbol_table);
                     root.accept(ll_visitor, symbol_table);
-                    //root.accept(eval, symbol_table);
-                    //root.accept(type_ch, symbol_table);
                     //symbol_table.printOffsets();
                 }catch (Exception exc) {
                     System.err.println("Error: " + exc.getMessage());

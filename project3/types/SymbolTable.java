@@ -3,7 +3,7 @@ package types;
 import java.util.*;
 
 public class SymbolTable {
-    private LinkedHashMap <String, ClassContents> symbol_table;
+    private final LinkedHashMap <String, ClassContents> symbol_table;
 
     public SymbolTable () {
         symbol_table = new LinkedHashMap <String, ClassContents>();
@@ -34,8 +34,7 @@ public class SymbolTable {
     }
 
     public boolean newClass (String class_name, String parent_class, boolean is_main) {
-        if (symbol_table.putIfAbsent (class_name, new ClassContents (class_name, parent_class, is_main)) == null) return true;
-        else return false;
+        return symbol_table.putIfAbsent(class_name, new ClassContents(class_name, parent_class, is_main)) == null;
     }
 
     public boolean addMethod (String class_name, String method_name, String type) {
@@ -125,19 +124,13 @@ public class SymbolTable {
             for (Map.Entry<String, String> field_entry : current_class_contents.fields.entrySet()) {
                 String field_key = field_entry.getKey();
                 String current_field_type = field_entry.getValue();
-                int current_offset = -1;
+                int current_offset;
                 switch(current_field_type) {
                     case "int":
                         current_offset = 4;
                         break;
                     case "boolean":
                         current_offset = 1;
-                        break;
-                    case "int[]":
-                        current_offset = 8;
-                        break;
-                    case "boolean[]":
-                        current_offset = 8;
                         break;
                     default:
                         current_offset = 8;
@@ -246,8 +239,7 @@ class ClassContents {
     }
 
     public boolean VarAdd (String type, String member_name) {
-        if (fields.putIfAbsent (member_name, type) == null) return true;
-        else return false;
+        return fields.putIfAbsent(member_name, type) == null;
     }
 
     public boolean VarAdd (String method_name, String type, String member_name) {
@@ -260,8 +252,7 @@ class ClassContents {
     }
 
     public boolean newMethod (String method_name, String return_type) {
-        if (methods.putIfAbsent (method_name, new MethodContents (method_name, return_type)) == null) return true;
-        else return false;
+        return methods.putIfAbsent(method_name, new MethodContents(method_name, return_type)) == null;
     }
 
     public boolean addParameters (String method_name, String param_type, String param_name) {
