@@ -1,6 +1,6 @@
 package types;
 
-import java.util.LinkedHashMap;
+import java.util.*;
 
 public class ClassContents {
     LinkedHashMap<String, String> fields;
@@ -12,11 +12,23 @@ public class ClassContents {
     int methods_offset_sum;
 
     public ClassContents (String given_class_name, String given_parent_class, boolean main_class) {
-        fields = new LinkedHashMap<String, String>();
-        methods = new LinkedHashMap<String, MethodContents>();
+        fields = new LinkedHashMap<>();
+        methods = new LinkedHashMap<>();
         class_name = given_class_name;
         parent_class = given_parent_class;
         is_main = main_class;
+    }
+
+    public boolean getIsMain() {
+        return is_main;
+    }
+
+    public String getClassName() {
+        return class_name;
+    }
+
+    public Collection<MethodContents> getMethodContents() {
+        return methods.values();
     }
 
     public String getParentClass () {

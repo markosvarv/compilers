@@ -4,6 +4,8 @@ import syntaxtree.*;
 import visitor.GJDepthFirst;
 import java.io.*;
 import java.lang.String;
+import java.util.Collection;
+import java.util.LinkedList;
 import java.util.Set;
 import types.*;
 
@@ -40,10 +42,10 @@ public class LoweringVisitor extends GJDepthFirst<String, SymbolTable> {
     }
 
     void emit (String buf_output) {
-        pw.println(buf_output);
+        pw.print(buf_output);
     }
 
-    String getLLVMType (String java_type) throws Exception {
+    String getLLVMType (String java_type) {
         switch (java_type) {
             case "int":
                 return "i32";
@@ -52,6 +54,37 @@ public class LoweringVisitor extends GJDepthFirst<String, SymbolTable> {
             default:
                 return "i8*";
                 //throw new Exception ("cannot determine type " + java_type);
+        }
+    }
+
+    void declareVTables(SymbolTable symbol_table) {
+        Collection<ClassContents> classes = symbol_table.getClasses();
+        for (ClassContents current_class_contents : classes) {
+            if (current_class_contents.getIsMain())
+                emit ("@." + current_class_contents.getClassName() + "_vtable = global [0 x i8*] []\n\n");
+            else {
+
+                Collection<MethodContents> methods = current_class_contents.getMethodContents();
+
+                emit("@." + current_class_contents.getClassName() + "_vtable = global [" + methods.size() + " x i8*] [\n");
+
+                for (MethodContents current_method_contents : methods) {
+                    String method_name = current_method_contents.getMethodName();
+                    emit("\ti8* bitcast(" + getLLVMType(current_method_contents.getReturnType()) + " (");
+
+                    LinkedList<String> parameter_types = current_method_contents.getParameterTypes();
+
+                    emit("i8*"); //*this* pointer
+
+                    for (String current_parameter_type : parameter_types) {
+                        emit(", " + getLLVMType(current_parameter_type));
+                    }
+
+                    emit(")* @" + current_class_contents.getClassName() + "." + current_method_contents.getMethodName() + " to i8*)\n");
+
+                }
+                emit("]\n\n");
+            }
         }
     }
 
@@ -95,20 +128,7 @@ public class LoweringVisitor extends GJDepthFirst<String, SymbolTable> {
         current_class = main_class_name;
         current_method = "main";
 
-
-//        emit ("@." + main_class_name + "_vtable = global [0 x i8*] []\n");
-
-        Set<String> classes = symbol_table.getClasses();
-        for (String cur_class : classes) {
-            ClassContents con = symbol_table.getClassContents(cur_class);
-
-//            if (cur_class.equals(main_class_name))
-//                emit ("@." + main_class_name + "_vtable = global [0 x i8*] []\n");
-//            else
-//                emit ("@." + cur_class + "_vtable = global [" + symbol_table.getMethodsNum(cur_class) + " x i8*] []\n");
-        }
-
-//        emit ("@." + current_class + "_vtable = global [" + symbol_table.getMethodsNum(current_class) + " x i8*] []\n");
+        declareVTables(symbol_table);
 
         emit ("declare i8* @calloc(i32, i32)\n" +
                 "declare i32 @printf(i8*, ...)\n" +
@@ -129,15 +149,15 @@ public class LoweringVisitor extends GJDepthFirst<String, SymbolTable> {
                 "\tret void\n" +
                 "}\n");
 
-        emit("define i32 @main() {");
+        emit("define i32 @main() {\n");
 
         n.f11.accept(this, symbol_table);
         n.f14.accept(this, symbol_table);
         n.f15.accept(this, symbol_table);
 
-        emit("\tret i32 0");
+        emit("\tret i32 0\n");
 
-        emit("}");
+        emit("}\n");
         return null;
     }
 
@@ -150,7 +170,7 @@ public class LoweringVisitor extends GJDepthFirst<String, SymbolTable> {
         String java_type = n.f0.accept(this, symbol_table);
         String llvm_type = getLLVMType(java_type);
         String id = n.f1.accept(this, symbol_table);
-        emit("\t%" + id + " = alloca " + llvm_type);
+        emit("\t%" + id + " = alloca " + llvm_type + '\n');
         return null;
     }
 
@@ -290,7 +310,7 @@ public class LoweringVisitor extends GJDepthFirst<String, SymbolTable> {
         System.out.println ("expr = " + expr);
 
         //store i32 %val, i32* %ptr
-        emit("\tstore " + llvm_type + " " + expr + ", i32* %" + id);
+        emit("\tstore " + llvm_type + " " + expr + ", i32* %" + id + '\n');
 
         return null;
     }
@@ -345,19 +365,19 @@ public class LoweringVisitor extends GJDepthFirst<String, SymbolTable> {
         String end_label = newIfLabel();
 
         //br i1 %case, label %if, label %else
-        emit("\tbr i1 " + expression + ", label %" + if_label + ", label %" + else_label);
+        emit("\tbr i1 " + expression + ", label %" + if_label + ", label %" + else_label + '\n');
 
-        emit("\n\t" + if_label + ":");
+        emit("\n\t" + if_label + ":\n");
         n.f4.accept(this, symbol_table);
         //br label %goto
-        emit("\tbr label %" + end_label);
+        emit("\tbr label %" + end_label + '\n');
 
-        emit("\n\t" + else_label + ":");
+        emit("\n\t" + else_label + ":\n");
         n.f6.accept(this, symbol_table);
         //br label %goto
-        emit("\tbr label %" + end_label);
+        emit("\tbr label %" + end_label + '\n');
 
-        emit("\n\t" + end_label + ":");
+        emit("\n\t" + end_label + ":\n");
         return null;
     }
 //
@@ -386,7 +406,7 @@ public class LoweringVisitor extends GJDepthFirst<String, SymbolTable> {
     public String visit(PrintStatement n, SymbolTable symbol_table) throws Exception {
         String expr = n.f2.accept(this, symbol_table);
         //call void (i32) @print_int(i32 %_0)
-        emit("\tcall void (i32) @print_int(i32 " + expr + ")");
+        emit("\tcall void (i32) @print_int(i32 " + expr + ")\n");
         return null;
     }
 
@@ -429,7 +449,7 @@ public class LoweringVisitor extends GJDepthFirst<String, SymbolTable> {
         String temp_reg = newTemp();
 
         //%case = icmp slt i32 %a, %b
-        emit("\t" + temp_reg + " = icmp slt i32 " + pr_expr1 + ", " + pr_expr2);
+        emit("\t" + temp_reg + " = icmp slt i32 " + pr_expr1 + ", " + pr_expr2 + '\n');
         return temp_reg;
     }
 
@@ -597,7 +617,7 @@ public class LoweringVisitor extends GJDepthFirst<String, SymbolTable> {
             String temp_reg = newTemp();
 
             //%val = load i32, i32* %ptr
-            emit("\t" + temp_reg + " = load i32, i32* %" + expression);
+            emit("\t" + temp_reg + " = load i32, i32* %" + expression + '\n');
             return temp_reg;
         }
     }

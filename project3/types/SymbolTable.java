@@ -6,7 +6,7 @@ public class SymbolTable {
     private final LinkedHashMap <String, ClassContents> symbol_table;
 
     public SymbolTable () {
-        symbol_table = new LinkedHashMap <String, ClassContents>();
+        symbol_table = new LinkedHashMap <>();
     }
 
     //add a field in the class
@@ -216,13 +216,13 @@ public class SymbolTable {
         return symbol_table.containsKey(class_name);
     }
 
-    public Set<String> getClasses () {
-        return symbol_table.keySet();
+    public Collection<ClassContents> getClasses () {
+        return symbol_table.values();
     }
 
-    public ClassContents getClassContents (String class_name) throws Exception {
-        ClassContents class_contents = symbol_table.get(class_name);
-        if (class_contents == null) throw new Exception ("Cannot find class " + class_name + " in symbol table");
-        return class_contents;
-    }
+//    public ClassContents getClassContents (String class_name) throws Exception {
+//        ClassContents class_contents = symbol_table.get(class_name);
+//        if (class_contents == null) throw new Exception ("Cannot find class " + class_name + " in symbol table");
+//        return class_contents;
+//    }
 }

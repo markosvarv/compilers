@@ -36,11 +36,15 @@ public class MethodContents {
         }
     }
 
+    public String getMethodName() {
+        return method_name;
+    }
+
     public String getReturnType () {
         return return_type;
     }
 
     public LinkedList<String> getParameterTypes() {
-        return new LinkedList<String>(parameters.values());
+        return new LinkedList<>(parameters.values());
     }
 }
