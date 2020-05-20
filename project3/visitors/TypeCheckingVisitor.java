@@ -32,9 +32,8 @@ public class TypeCheckingVisitor extends GJDepthFirst<String, SymbolTable>{
      * f17 -> "}"
      */
     public String visit(MainClass n, SymbolTable symbol_table) throws Exception {
-        String main_class_name = n.f1.accept(this, symbol_table);
 
-        current_class = main_class_name;
+        current_class = n.f1.accept(this, symbol_table);
         current_method = "main";
         argument_stack = new Stack<String>();
 
@@ -54,9 +53,7 @@ public class TypeCheckingVisitor extends GJDepthFirst<String, SymbolTable>{
      * f5 -> "}"
      */
     public String visit(ClassDeclaration n, SymbolTable symbol_table) throws Exception {
-        String classname = n.f1.accept(this, symbol_table);
-
-        current_class = classname;
+        current_class = n.f1.accept(this, symbol_table);
         n.f3.accept(this, symbol_table);
         n.f4.accept(this, symbol_table);
         return null;
@@ -74,10 +71,7 @@ public class TypeCheckingVisitor extends GJDepthFirst<String, SymbolTable>{
      * f7 -> "}"
      */
     public String visit(ClassExtendsDeclaration n, SymbolTable symbol_table) throws Exception {
-        String classname = n.f1.accept(this, symbol_table);
-        String parentclass = n.f3.accept(this, symbol_table);
-
-        current_class = classname;
+        current_class = n.f1.accept(this, symbol_table);
 
         n.f5.accept(this, symbol_table);
         n.f6.accept(this, symbol_table);
@@ -191,7 +185,7 @@ public class TypeCheckingVisitor extends GJDepthFirst<String, SymbolTable>{
     public String visit(AssignmentStatement n, SymbolTable symbol_table) throws Exception {
         String identifier = n.f0.accept(this, symbol_table);
         String id_type = symbol_table.getTypeofIdentifier(identifier, current_class, current_method);
-        if (id_type.equals("") || id_type == null)
+        if (id_type==null || id_type.equals(""))
             throw new Exception("Cannot determine the type of identifier " + identifier);
 
         String expr_type = n.f2.accept(this, symbol_table);
@@ -230,7 +224,7 @@ public class TypeCheckingVisitor extends GJDepthFirst<String, SymbolTable>{
         if (expr_type == null) throw new Exception("Expression type in assignment is null");
 
         String id_type = symbol_table.getTypeofIdentifier(id, current_class, current_method);
-        if (id_type.equals("") || id_type == null)
+        if (id_type==null || id_type.equals(""))
             throw new Exception("Cannot determine the type of identifier " + id);
         else if (id_type.equals("int[]")) {
             if (!expr_type.equals("int"))

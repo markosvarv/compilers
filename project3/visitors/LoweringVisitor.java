@@ -4,7 +4,9 @@ import syntaxtree.*;
 import visitor.GJDepthFirst;
 import java.io.*;
 import java.lang.String;
+import java.util.Set;
 import types.*;
+
 public class LoweringVisitor extends GJDepthFirst<String, SymbolTable> {
     private String current_class;
     private String current_method;
@@ -48,7 +50,8 @@ public class LoweringVisitor extends GJDepthFirst<String, SymbolTable> {
             case "boolean":
                 return "i1";
             default:
-                throw new Exception ("cannot determine type " + java_type);
+                return "i8*";
+                //throw new Exception ("cannot determine type " + java_type);
         }
     }
 
@@ -93,7 +96,19 @@ public class LoweringVisitor extends GJDepthFirst<String, SymbolTable> {
         current_method = "main";
 
 
-        emit ("@." + main_class_name + "_vtable = global [0 x i8*] []\n");
+//        emit ("@." + main_class_name + "_vtable = global [0 x i8*] []\n");
+
+        Set<String> classes = symbol_table.getClasses();
+        for (String cur_class : classes) {
+            ClassContents con = symbol_table.getClassContents(cur_class);
+
+//            if (cur_class.equals(main_class_name))
+//                emit ("@." + main_class_name + "_vtable = global [0 x i8*] []\n");
+//            else
+//                emit ("@." + cur_class + "_vtable = global [" + symbol_table.getMethodsNum(cur_class) + " x i8*] []\n");
+        }
+
+//        emit ("@." + current_class + "_vtable = global [" + symbol_table.getMethodsNum(current_class) + " x i8*] []\n");
 
         emit ("declare i8* @calloc(i32, i32)\n" +
                 "declare i32 @printf(i8*, ...)\n" +
@@ -132,31 +147,27 @@ public class LoweringVisitor extends GJDepthFirst<String, SymbolTable> {
      * f2 -> ";"
      */
     public String visit(VarDeclaration n, SymbolTable symbol_table) throws Exception {
-        String type = n.f0.accept(this, symbol_table);
+        String java_type = n.f0.accept(this, symbol_table);
+        String llvm_type = getLLVMType(java_type);
         String id = n.f1.accept(this, symbol_table);
-        emit("\t%" + id + " = alloca " + type);
+        emit("\t%" + id + " = alloca " + llvm_type);
         return null;
     }
 
-    //%val = load i32, i32* %ptr
-    //emit("\tload i32, i32* " + );
-//
-//    /**
-//     * f0 -> "class"
-//     * f1 -> Identifier()
-//     * f2 -> "{"
-//     * f3 -> ( VarDeclaration() )*
-//     * f4 -> ( MethodDeclaration() )*
-//     * f5 -> "}"
-//     */
-//    public String visit(ClassDeclaration n, SymbolTable symbol_table) throws Exception {
-//        String classname = n.f1.accept(this, symbol_table);
-//
-//        current_class = classname;
-//        n.f3.accept(this, symbol_table);
-//        n.f4.accept(this, symbol_table);
-//        return null;
-//    }
+    /**
+     * f0 -> "class"
+     * f1 -> Identifier()
+     * f2 -> "{"
+     * f3 -> ( VarDeclaration() )*
+     * f4 -> ( MethodDeclaration() )*
+     * f5 -> "}"
+     */
+    public String visit(ClassDeclaration n, SymbolTable symbol_table) throws Exception {
+        current_class = n.f1.accept(this, symbol_table);
+        n.f3.accept(this, symbol_table);
+        n.f4.accept(this, symbol_table);
+        return null;
+    }
 //
 //
 //    /**
@@ -180,36 +191,33 @@ public class LoweringVisitor extends GJDepthFirst<String, SymbolTable> {
 //        return null;
 //    }
 //
-//    /**
-//     * f0 -> "public"
-//     * f1 -> Type()
-//     * f2 -> Identifier()
-//     * f3 -> "("
-//     * f4 -> ( FormalParameterList() )?
-//     * f5 -> ")"
-//     * f6 -> "{"
-//     * f7 -> ( VarDeclaration() )*
-//     * f8 -> ( Statement() )*
-//     * f9 -> "return"
-//     * f10 -> Expression()
-//     * f11 -> ";"
-//     * f12 -> "}"
-//     */
-//    public String visit(MethodDeclaration n, SymbolTable symbol_table) throws Exception {
-//        String declaration_return_type = n.f1.accept(this, symbol_table);
-//        String method_name = n.f2.accept(this, symbol_table);
-//        current_method = method_name;
-//
-//        n.f4.accept(this, symbol_table);
-//
-//        n.f7.accept(this, symbol_table);
-//        n.f8.accept(this, symbol_table);
-//
-//        String actual_return_type = n.f10.accept(this, symbol_table);
-//        if (!actual_return_type.equals(declaration_return_type) && !symbol_table.isParentType(actual_return_type, declaration_return_type))
-//            throw new Exception("Method " + method_name + " returns " + actual_return_type + ", while is declared to return " + declaration_return_type);
-//        return null;
-//    }
+    /**
+     * f0 -> "public"
+     * f1 -> Type()
+     * f2 -> Identifier()
+     * f3 -> "("
+     * f4 -> ( FormalParameterList() )?
+     * f5 -> ")"
+     * f6 -> "{"
+     * f7 -> ( VarDeclaration() )*
+     * f8 -> ( Statement() )*
+     * f9 -> "return"
+     * f10 -> Expression()
+     * f11 -> ";"
+     * f12 -> "}"
+     */
+    public String visit(MethodDeclaration n, SymbolTable symbol_table) throws Exception {
+        String declaration_return_type = n.f1.accept(this, symbol_table);
+        current_method = n.f2.accept(this, symbol_table);
+
+        n.f4.accept(this, symbol_table);
+
+        n.f7.accept(this, symbol_table);
+        n.f8.accept(this, symbol_table);
+
+        String actual_return_type = n.f10.accept(this, symbol_table);
+        return null;
+    }
 //
 //    /**
 //     * f0 -> Type()
@@ -257,7 +265,7 @@ public class LoweringVisitor extends GJDepthFirst<String, SymbolTable> {
      * f0 -> "int"
      */
     public String visit(IntegerType n, SymbolTable symbol_table) throws Exception {
-        return "i32";
+        return "int";
     }
 
     /**

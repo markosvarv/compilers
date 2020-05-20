@@ -11,16 +11,16 @@ public class MethodContents {
     LinkedHashMap <String, String> variables;
 
     public MethodContents (String given_method_name, String given_return_type) {
-        parameters = new LinkedHashMap<String, String>();
-        variables = new LinkedHashMap<String, String>();
+        parameters = new LinkedHashMap<>();
+        variables = new LinkedHashMap<>();
         method_name = given_method_name;
         return_type = given_return_type;
         override_method = false;
     }
 
+
     public boolean parametersAdd (String type, String name) {
-        if (parameters.putIfAbsent (name, type) == null) return true;
-        else return false;
+        return parameters.putIfAbsent(name, type) == null;
     }
 
     public boolean variablesAdd (String type, String name) {
