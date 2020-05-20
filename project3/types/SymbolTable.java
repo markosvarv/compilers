@@ -220,9 +220,7 @@ public class SymbolTable {
         return symbol_table.values();
     }
 
-//    public ClassContents getClassContents (String class_name) throws Exception {
-//        ClassContents class_contents = symbol_table.get(class_name);
-//        if (class_contents == null) throw new Exception ("Cannot find class " + class_name + " in symbol table");
-//        return class_contents;
-//    }
+    public ClassContents getClassContents (String class_name) {
+        return symbol_table.get(class_name);
+    }
 }

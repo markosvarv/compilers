@@ -5,6 +5,7 @@ import visitor.GJDepthFirst;
 import java.io.*;
 import java.lang.String;
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.Set;
 import types.*;
@@ -61,29 +62,33 @@ public class LoweringVisitor extends GJDepthFirst<String, SymbolTable> {
         Collection<ClassContents> classes = symbol_table.getClasses();
         for (ClassContents current_class_contents : classes) {
             if (current_class_contents.getIsMain())
-                emit ("@." + current_class_contents.getClassName() + "_vtable = global [0 x i8*] []\n\n");
+                emit("@." + current_class_contents.getClassName() + "_vtable = global [0 x i8*] []\n\n");
             else {
+                emit("@." + current_class_contents.getClassName() + "_vtable = global [");
+                StringBuilder buf= new StringBuilder();
+                Set<String> method_set = new HashSet<>();
+                String parent_class;
+                do {
+                    String current_class_name = current_class_contents.getClassName();
+                    Collection<MethodContents> methods = current_class_contents.getMethodContents();
+                    for (MethodContents current_method_contents : methods) {
+                        String current_method_name = current_method_contents.getMethodName();
+                        if (!method_set.add(current_method_name)) continue;
+                        buf.append("\ti8* bitcast(").append(getLLVMType(current_method_contents.getReturnType())).append(" (");
 
-                Collection<MethodContents> methods = current_class_contents.getMethodContents();
+                        LinkedList<String> parameter_types = current_method_contents.getParameterTypes();
 
-                emit("@." + current_class_contents.getClassName() + "_vtable = global [" + methods.size() + " x i8*] [\n");
+                        buf.append("i8*"); //*this* pointer
 
-                for (MethodContents current_method_contents : methods) {
-                    String method_name = current_method_contents.getMethodName();
-                    emit("\ti8* bitcast(" + getLLVMType(current_method_contents.getReturnType()) + " (");
-
-                    LinkedList<String> parameter_types = current_method_contents.getParameterTypes();
-
-                    emit("i8*"); //*this* pointer
-
-                    for (String current_parameter_type : parameter_types) {
-                        emit(", " + getLLVMType(current_parameter_type));
+                        for (String current_parameter_type : parameter_types) {
+                            buf.append(", ").append(getLLVMType(current_parameter_type));
+                        }
+                        buf.append(")* @").append(current_class_name).append(".").append(current_method_name).append(" to i8*)\n");
                     }
-
-                    emit(")* @" + current_class_contents.getClassName() + "." + current_method_contents.getMethodName() + " to i8*)\n");
-
-                }
-                emit("]\n\n");
+                    parent_class = current_class_contents.getParentClass();
+                }while (parent_class != null && (current_class_contents = symbol_table.getClassContents(parent_class))!=null);
+                buf.append("]\n\n");
+                emit(method_set.size() + " x i8*] [\n" + buf.toString());
             }
         }
     }
