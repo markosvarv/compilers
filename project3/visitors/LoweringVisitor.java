@@ -4,10 +4,8 @@ import syntaxtree.*;
 import visitor.GJDepthFirst;
 import java.io.*;
 import java.lang.String;
-import java.util.Collection;
-import java.util.HashSet;
-import java.util.LinkedList;
-import java.util.Set;
+import java.util.*;
+
 import types.*;
 
 public class LoweringVisitor extends GJDepthFirst<String, SymbolTable> {
@@ -16,12 +14,14 @@ public class LoweringVisitor extends GJDepthFirst<String, SymbolTable> {
     private final PrintWriter pw;
     private int current_reg_num;
     private int current_if_label_num;
+    private final HashMap<String, Integer> methods_number;
 
     public LoweringVisitor(String current_input) throws Exception {
         String path = current_input.substring(0, current_input.length()-5);
         File file = new File(path + ".ll");
         pw = new PrintWriter(file);
         current_reg_num = 0;
+        methods_number = new HashMap<>();
     }
 
     private String newTemp() {
@@ -68,8 +68,8 @@ public class LoweringVisitor extends GJDepthFirst<String, SymbolTable> {
                 StringBuilder buf= new StringBuilder();
                 Set<String> method_set = new HashSet<>();
                 String parent_class;
+                String class_name = current_class_contents.getClassName();
                 do {
-                    String current_class_name = current_class_contents.getClassName();
                     Collection<MethodContents> methods = current_class_contents.getMethodContents();
                     for (MethodContents current_method_contents : methods) {
                         String current_method_name = current_method_contents.getMethodName();
@@ -83,12 +83,13 @@ public class LoweringVisitor extends GJDepthFirst<String, SymbolTable> {
                         for (String current_parameter_type : parameter_types) {
                             buf.append(", ").append(getLLVMType(current_parameter_type));
                         }
-                        buf.append(")* @").append(current_class_name).append(".").append(current_method_name).append(" to i8*)\n");
+                        buf.append(")* @").append(current_class_contents.getClassName()).append(".").append(current_method_name).append(" to i8*)\n");
                     }
                     parent_class = current_class_contents.getParentClass();
                 }while (parent_class != null && (current_class_contents = symbol_table.getClassContents(parent_class))!=null);
                 buf.append("]\n\n");
                 emit(method_set.size() + " x i8*] [\n" + buf.toString());
+                methods_number.put(class_name, method_set.size());
             }
         }
     }
@@ -129,8 +130,7 @@ public class LoweringVisitor extends GJDepthFirst<String, SymbolTable> {
      * f17 -> "}"
      */
     public String visit(MainClass n, SymbolTable symbol_table) throws Exception {
-        String main_class_name = n.f1.accept(this, symbol_table);
-        current_class = main_class_name;
+        current_class = n.f1.accept(this, symbol_table);
         current_method = "main";
 
         declareVTables(symbol_table);
@@ -160,9 +160,8 @@ public class LoweringVisitor extends GJDepthFirst<String, SymbolTable> {
         n.f14.accept(this, symbol_table);
         n.f15.accept(this, symbol_table);
 
-        emit("\tret i32 0\n");
+        emit("\tret i32 0\n}\n");
 
-        emit("}\n");
         return null;
     }
 
@@ -310,9 +309,9 @@ public class LoweringVisitor extends GJDepthFirst<String, SymbolTable> {
         String id = n.f0.accept(this, symbol_table);
         String java_type = symbol_table.getTypeofIdentifier(id, current_class, current_method);
         String llvm_type = getLLVMType(java_type);
-        System.out.println("llvm type of " + id + " with java type = " + java_type + " = " + llvm_type);
+        //System.out.println("llvm type of " + id + " with java type = " + java_type + " = " + llvm_type);
         String expr = n.f2.accept(this, symbol_table);
-        System.out.println ("expr = " + expr);
+        //System.out.println ("expr = " + expr);
 
         //store i32 %val, i32* %ptr
         emit("\tstore " + llvm_type + " " + expr + ", i32* %" + id + '\n');
@@ -614,11 +613,10 @@ public class LoweringVisitor extends GJDepthFirst<String, SymbolTable> {
 
         String expression = n.f0.accept(this, symbol_table);
 
-        if (isNumeric(expression)) {
-            System.out.println(expression + " is numeric");
+        if (isNumeric(expression) || expression.startsWith("%")) {
             return expression;
-        } else {
-            System.out.println(expression + " isn't numeric");
+        }
+        else {
             String temp_reg = newTemp();
 
             //%val = load i32, i32* %ptr
@@ -708,19 +706,32 @@ public class LoweringVisitor extends GJDepthFirst<String, SymbolTable> {
 //    }
 //
 //
-//    /**
-//     * f0 -> "new"
-//     * f1 -> Identifier()
-//     * f2 -> "("
-//     * f3 -> ")"
-//     */
-//    public String visit(AllocationExpression n, SymbolTable symbol_table) throws Exception {
-//        String allocation_class = n.f1.accept(this, symbol_table);
-//
-//        if (!symbol_table.containsClass(allocation_class)) throw new Exception("Couldn't find allocation class " + allocation_class);
-//        return allocation_class;
-//        return null;
-//    }
+    /**
+     * f0 -> "new"
+     * f1 -> Identifier()
+     * f2 -> "("
+     * f3 -> ")"
+     */
+    public String visit(AllocationExpression n, SymbolTable symbol_table) throws Exception {
+        String allocation_class = n.f1.accept(this, symbol_table);
+
+        //%result = call i8* @calloc(i32 1, i32 %val)
+        String calloc_reg = newTemp();
+        emit ('\t' + calloc_reg + " = call i8* @calloc(i32 1, i32 " + "12)\n");
+
+        //%ptr = bitcast i32* %ptr2 to i8**
+        String bitcast_reg = newTemp();
+        emit ('\t' + bitcast_reg + " = bitcast i8* " + calloc_reg + " to i8***\n");
+
+        //%ptr_idx = getelementptr i8, i8* %ptr, i32 %idx
+        String getelementptr_reg = newTemp();
+        int current_methods_num = methods_number.get(allocation_class);
+        emit('\t' + getelementptr_reg + " = getelementptr [" + current_methods_num + " x i8*], [" + current_methods_num + " x i8*]* @." + allocation_class + "_vtable, i32 0, i32 0\n") ;
+
+        //store i32 %val, i32* %ptr
+        emit("\tstore i8** " + getelementptr_reg + ", i8*** " + bitcast_reg + "\n\n");
+        return calloc_reg;
+    }
 
 //    /**
 //     * f0 -> "("

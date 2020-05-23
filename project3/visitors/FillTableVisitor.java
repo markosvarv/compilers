@@ -40,7 +40,7 @@ public class FillTableVisitor extends GJDepthFirst<String, SymbolTable> {
         class_var = false;
 
         if (!symbol_table.addMethod(main_class_name, "main", "void"))
-            throw new Exception("Cannot add main methond in main class");
+            throw new Exception("Cannot add main method in main class");
 
         //exceptional case
         if (!symbol_table.addVar (main_class_name, "main", "String[]", n.f11.accept(this, symbol_table)))
