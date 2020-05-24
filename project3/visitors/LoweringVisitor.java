@@ -14,7 +14,10 @@ public class LoweringVisitor extends GJDepthFirst<String, SymbolTable> {
     private final PrintWriter pw;
     private int current_reg_num;
     private int current_if_label_num;
+    private String pr_expr_var;
     private final HashMap<String, Integer> methods_number;
+    private final Stack<String> argument_stack;
+
 
     public LoweringVisitor(String current_input) throws Exception {
         String path = current_input.substring(0, current_input.length()-5);
@@ -22,6 +25,8 @@ public class LoweringVisitor extends GJDepthFirst<String, SymbolTable> {
         pw = new PrintWriter(file);
         current_reg_num = 0;
         methods_number = new HashMap<>();
+        argument_stack = new Stack<>();
+
     }
 
     private String newTemp() {
@@ -58,6 +63,22 @@ public class LoweringVisitor extends GJDepthFirst<String, SymbolTable> {
         }
     }
 
+    String getMethodSignature (MethodContents current_method_contents) {
+        StringBuilder buf= new StringBuilder();
+
+        buf.append(getLLVMType(current_method_contents.getReturnType())).append(" (");
+
+        LinkedList<String> parameter_types = current_method_contents.getParameterTypes();
+
+        buf.append("i8*"); //*this* pointer
+
+        for (String current_parameter_type : parameter_types) {
+            buf.append(", ").append(getLLVMType(current_parameter_type));
+        }
+        buf.append(")*");
+        return buf.toString();
+    }
+
     void declareVTables(SymbolTable symbol_table) {
         Collection<ClassContents> classes = symbol_table.getClasses();
         for (ClassContents current_class_contents : classes) {
@@ -72,18 +93,19 @@ public class LoweringVisitor extends GJDepthFirst<String, SymbolTable> {
                 do {
                     Collection<MethodContents> methods = current_class_contents.getMethodContents();
                     for (MethodContents current_method_contents : methods) {
-                        String current_method_name = current_method_contents.getMethodName();
-                        if (!method_set.add(current_method_name)) continue;
-                        buf.append("\ti8* bitcast(").append(getLLVMType(current_method_contents.getReturnType())).append(" (");
+                        if (!method_set.add(current_method_contents.getMethodName())) continue;
+                        buf.append("\ti8* bitcast(").append(getMethodSignature(current_method_contents));
+                        buf.append(" @").append(current_class_contents.getClassName()).append(".").append(current_method_contents.getMethodName()).append(" to i8*)\n");
 
-                        LinkedList<String> parameter_types = current_method_contents.getParameterTypes();
 
-                        buf.append("i8*"); //*this* pointer
-
-                        for (String current_parameter_type : parameter_types) {
-                            buf.append(", ").append(getLLVMType(current_parameter_type));
-                        }
-                        buf.append(")* @").append(current_class_contents.getClassName()).append(".").append(current_method_name).append(" to i8*)\n");
+//                        LinkedList<String> parameter_types = current_method_contents.getParameterTypes();
+//
+//                        buf.append("i8*"); //*this* pointer
+//
+//                        for (String current_parameter_type : parameter_types) {
+//                            buf.append(", ").append(getLLVMType(current_parameter_type));
+//                        }
+//                        buf.append(")* @").append(current_class_contents.getClassName()).append(".").append(current_method_name).append(" to i8*)\n");
                     }
                     parent_class = current_class_contents.getParentClass();
                 }while (parent_class != null && (current_class_contents = symbol_table.getClassContents(parent_class))!=null);
@@ -314,7 +336,7 @@ public class LoweringVisitor extends GJDepthFirst<String, SymbolTable> {
         //System.out.println ("expr = " + expr);
 
         //store i32 %val, i32* %ptr
-        emit("\tstore " + llvm_type + " " + expr + ", i32* %" + id + '\n');
+        emit("\tstore " + llvm_type + " " + expr + ", " + llvm_type + "* %" + id + '\n');
 
         return null;
     }
@@ -536,67 +558,90 @@ public class LoweringVisitor extends GJDepthFirst<String, SymbolTable> {
 //    }
 //
 //
-//    /**
-//     * f0 -> PrimaryExpression()
-//     * f1 -> "."
-//     * f2 -> Identifier()
-//     * f3 -> "("
-//     * f4 -> ( ExpressionList() )?
-//     * f5 -> ")"
-//     */
-//    public String visit(MessageSend n, SymbolTable symbol_table) throws Exception {
-//        String pr_expr = n.f0.accept(this, symbol_table);
-//        String id = n.f2.accept(this, symbol_table);
-//
-//        MethodContents method_contents = symbol_table.getMethodContents (pr_expr, id);
-//        if (method_contents==null) throw new Exception("Cannot get method " + id + " contents");
-//        LinkedList<String> parameter_types = method_contents.getParameterTypes();
-//
-//        n.f4.accept(this, symbol_table);
-//        LinkedList<String> argument_list = new LinkedList<String>();
-//
-//        if (!argument_stack.empty() && !argument_stack.peek().equals("(")) {
-//            do argument_list.addFirst(argument_stack.pop());
-//            while (!argument_stack.peek().equals("("));
-//            String lparen = argument_stack.pop();
-//            if (!lparen.equals("(")) throw new Exception("Unexpected error in message send stack");
-//        }
-//
-//        Iterator<String> arguments_it = argument_list.iterator();
-//        Iterator<String> parameters_it = parameter_types.iterator();
-//        while (parameters_it.hasNext() && arguments_it.hasNext()) {
-//            String arg_next = arguments_it.next();
-//            String param_next = parameters_it.next();
-//            if (!arg_next.equals(param_next) && !symbol_table.isParentType(arg_next, param_next))
-//                throw new Exception("Method " + id + " is called with different arguments than declared");
-//        }
-//        if (parameters_it.hasNext() || arguments_it.hasNext())
-//            throw new Exception("Parameter size is different from argument size");
-//
-//        return method_contents.getReturnType();
-//        return null;
-//    }
-//
-//    /**
-//     * f0 -> Expression()
-//     * f1 -> ExpressionTail()
-//     */
-//    public String visit(ExpressionList n, SymbolTable symbol_table) throws Exception {
-////        argument_stack.push("(");
-////        argument_stack.push(n.f0.accept(this, symbol_table));
-////        n.f1.accept(this, symbol_table);
-//        return null;
-//    }
-//
-//
-//    /**
-//     * f0 -> ","
-//     * f1 -> Expression()
-//     */
-//    public String visit(ExpressionTerm n, SymbolTable symbol_table) throws Exception {
-////        argument_stack.push(n.f1.accept(this, symbol_table));
-//        return null;
-//    }
+    /**
+     * f0 -> PrimaryExpression()
+     * f1 -> "."
+     * f2 -> Identifier()
+     * f3 -> "("
+     * f4 -> ( ExpressionList() )?
+     * f5 -> ")"
+     */
+    public String visit(MessageSend n, SymbolTable symbol_table) throws Exception {
+        String pr_expr_reg = n.f0.accept(this, symbol_table);
+        String id = n.f2.accept(this, symbol_table);
+
+        //%ptr = bitcast i32* %ptr2 to i8**
+        String bitcast_reg = newTemp();
+        emit("\n\t" + bitcast_reg + " = bitcast i8* " + pr_expr_reg + " to i8***\n");
+
+        //%val = load i32, i32* %ptr
+        String load_reg = newTemp();
+        emit('\t' + load_reg + " = load i8**, i8*** " + bitcast_reg + '\n');
+
+        String element_pointer = newTemp();
+        emit('\t' + element_pointer + " = getelementptr i8*, i8** " + load_reg + ", i32 " + "0" + '\n');
+
+        String function_pointer = newTemp();
+        emit('\t' + function_pointer + " = load i8*, i8** " + element_pointer + '\n');
+
+        System.out.println("id = " + id + " current class = " + current_class + " current_method = " + current_method);
+        String class_name = symbol_table.getTypeofIdentifier (pr_expr_var, current_class, current_method);
+        System.out.println("class_name = " + class_name);
+        MethodContents method_contents = symbol_table.getMethodContents(class_name, id);
+        String signature = getMethodSignature(method_contents);
+        System.out.println("method " + id + " signature = " + signature);
+
+        String signature_pointer = newTemp();
+        emit ('\t' + signature_pointer + " = bitcast i8* " + function_pointer + " to " + signature + '\n');
+
+        //%_12 = call i32 %_11(i8* %_6, i32 1)
+        String call_reg = newTemp();
+        emit('\t' + call_reg + " = call " + "i32 " + signature_pointer +  "(i8* " + pr_expr_reg);
+
+        n.f4.accept(this, symbol_table);
+
+        if (!argument_stack.empty() && !argument_stack.peek().equals("(")) {
+            do {
+                String expression = argument_stack.pop();
+                if(isNumeric(expression)) {
+                    emit(", i32 " + expression);
+                } else {
+                    emit(", " + expression);
+                }
+
+            } while (!argument_stack.peek().equals("("));
+            String lparen = argument_stack.pop();
+            if (!lparen.equals("(")) throw new Exception("Unexpected error in message send stack");
+        }
+
+        emit(")\n\n");
+
+
+        return call_reg;
+
+
+    }
+
+    /**
+     * f0 -> Expression()
+     * f1 -> ExpressionTail()
+     */
+    public String visit(ExpressionList n, SymbolTable symbol_table) throws Exception {
+        argument_stack.push("(");
+        argument_stack.push(n.f0.accept(this, symbol_table));
+        n.f1.accept(this, symbol_table);
+        return null;
+    }
+
+
+    /**
+     * f0 -> ","
+     * f1 -> Expression()
+     */
+    public String visit(ExpressionTerm n, SymbolTable symbol_table) throws Exception {
+        argument_stack.push(n.f1.accept(this, symbol_table));
+        return null;
+    }
 
 
     /**
@@ -614,36 +659,22 @@ public class LoweringVisitor extends GJDepthFirst<String, SymbolTable> {
         String expression = n.f0.accept(this, symbol_table);
 
         if (isNumeric(expression) || expression.startsWith("%")) {
+            //System.out.println("mphka sto if expr = " + expression);
             return expression;
         }
         else {
+            pr_expr_var = expression;
             String temp_reg = newTemp();
 
+            String java_type = symbol_table.getTypeofIdentifier(expression, current_class, current_method);
+            String llvm_type = getLLVMType(java_type);
+
             //%val = load i32, i32* %ptr
-            emit("\t" + temp_reg + " = load i32, i32* %" + expression + '\n');
+            emit("\t" + temp_reg + " = load " + llvm_type + ", " + llvm_type + "* %" + expression + '\n');
             return temp_reg;
         }
     }
 
-
-//
-//        if (expression==null) throw new Exception("Primary expression is null. Current class = " + current_class + ", current_method = " + current_method);
-//        else if (expression.equals("int") || expression.equals("boolean") || expression.equals("int[]") || expression.equals("boolean[]"))
-//            return expression;
-//        else if (expression.equals("true") || expression.equals("false"))
-//            return "boolean";
-//        else if (expression.equals("this"))
-//            return this.current_class;
-//        else if (symbol_table.containsClass(expression))
-//            return expression;
-//        else { //it's an identifier
-//            String id_type = symbol_table.getTypeofIdentifier (expression, current_class, current_method);
-//            if (id_type==null || id_type.equals(""))
-//                throw new Exception("Cannot determine the type of " + expression);
-//            return id_type;
-//        }
-//    }
-//
     /**
      * f0 -> <INTEGER_LITERAL>
      */
@@ -717,7 +748,7 @@ public class LoweringVisitor extends GJDepthFirst<String, SymbolTable> {
 
         //%result = call i8* @calloc(i32 1, i32 %val)
         String calloc_reg = newTemp();
-        emit ('\t' + calloc_reg + " = call i8* @calloc(i32 1, i32 " + "12)\n");
+        emit ("\n\t" + calloc_reg + " = call i8* @calloc(i32 1, i32 " + "12)\n");
 
         //%ptr = bitcast i32* %ptr2 to i8**
         String bitcast_reg = newTemp();

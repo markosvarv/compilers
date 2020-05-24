@@ -35,7 +35,7 @@ public class TypeCheckingVisitor extends GJDepthFirst<String, SymbolTable>{
 
         current_class = n.f1.accept(this, symbol_table);
         current_method = "main";
-        argument_stack = new Stack<String>();
+        argument_stack = new Stack<>();
 
         n.f11.accept(this, symbol_table);
         n.f14.accept(this, symbol_table);
