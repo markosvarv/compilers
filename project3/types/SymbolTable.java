@@ -176,7 +176,7 @@ public class SymbolTable {
             current_class_contents = symbol_table.get(current_class_contents.parent_class);
             if (current_class_contents.fields.containsKey(id)) return current_class_contents.fields.get(id);
         }
-        return "";
+        return null;
     }
 
     public boolean isClassField (String id, String class_name, String method_name) {

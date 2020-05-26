@@ -11,7 +11,7 @@ import types.*;
 public class LoweringVisitor extends GJDepthFirst<String, SymbolTable> {
     private String current_class;
     private String current_method;
-    private final PrintWriter pw;
+    private final File file;
     private int current_reg_num;
     private int current_if_label_num;
     private String pr_expr_var;
@@ -22,8 +22,10 @@ public class LoweringVisitor extends GJDepthFirst<String, SymbolTable> {
 
     public LoweringVisitor(String current_input) throws Exception {
         String path = current_input.substring(0, current_input.length()-5);
-        File file = new File(path + ".ll");
-        pw = new PrintWriter(file);
+        file = new File(path + ".ll");
+        PrintWriter pw = new PrintWriter(file);
+        pw.print("");
+        pw.close();
         current_reg_num = 0;
         methods_number = new HashMap<>();
         argument_stack = new Stack<>();
@@ -47,8 +49,10 @@ public class LoweringVisitor extends GJDepthFirst<String, SymbolTable> {
         }
     }
 
-    void emit (String buf_output) {
-        pw.print(buf_output);
+    void emit (String buf_output) throws IOException {
+        FileWriter fw = new FileWriter(file,true); //the true will append the new data
+        fw.write(buf_output); //appends the string to the file
+        fw.close();
     }
 
     String getLLVMType (String java_type) {
@@ -76,7 +80,7 @@ public class LoweringVisitor extends GJDepthFirst<String, SymbolTable> {
         return buf.toString();
     }
 
-    String emitClassFieldCode (String llvm_type) {
+    String emitClassFieldCode (String llvm_type) throws IOException {
         //    %_1 = getelementptr i8, i8* %this, i32 8
         String field_pointer_reg = newTemp();
 
@@ -90,7 +94,7 @@ public class LoweringVisitor extends GJDepthFirst<String, SymbolTable> {
         return bitcast_reg;
     }
 
-    void declareVTables(SymbolTable symbol_table) {
+    void declareVTables(SymbolTable symbol_table) throws IOException {
         Collection<ClassContents> classes = symbol_table.getClasses();
         for (ClassContents current_class_contents : classes) {
             if (current_class_contents.getIsMain())
@@ -128,8 +132,6 @@ public class LoweringVisitor extends GJDepthFirst<String, SymbolTable> {
         n.f0.accept(this, symbol_table);
         n.f1.accept(this, symbol_table);
         n.f2.accept(this, symbol_table);
-
-        pw.close();
         return null;
     }
 
@@ -213,7 +215,6 @@ public class LoweringVisitor extends GJDepthFirst<String, SymbolTable> {
      */
     public String visit(ClassDeclaration n, SymbolTable symbol_table) throws Exception {
         current_class = n.f1.accept(this, symbol_table);
-        //n.f3.accept(this, symbol_table);
         n.f4.accept(this, symbol_table);
         return null;
     }
@@ -231,7 +232,6 @@ public class LoweringVisitor extends GJDepthFirst<String, SymbolTable> {
      */
     public String visit(ClassExtendsDeclaration n, SymbolTable symbol_table) throws Exception {
         current_class = n.f1.accept(this, symbol_table);
-        //n.f5.accept(this, symbol_table);
         n.f6.accept(this, symbol_table);
         return null;
     }
@@ -495,35 +495,33 @@ public class LoweringVisitor extends GJDepthFirst<String, SymbolTable> {
         return temp_reg;
     }
 
+    /**
+     * f0 -> PrimaryExpression()
+     * f1 -> "+"
+     * f2 -> PrimaryExpression()
+     */
+    public String visit(PlusExpression n, SymbolTable symbol_table) throws Exception {
+        String pr_expr1 = n.f0.accept(this, symbol_table);
+        String pr_expr2 = n.f2.accept(this, symbol_table);
 
-//    /**
-//     * f0 -> PrimaryExpression()
-//     * f1 -> "+"
-//     * f2 -> PrimaryExpression()
-//     */
-//    public String visit(PlusExpression n, SymbolTable symbol_table) throws Exception {
-//        String pr_expr1 = n.f0.accept(this, symbol_table);
-//        String pr_expr2 = n.f2.accept(this, symbol_table);
-//
-//        if (!pr_expr1.equals("int") || !pr_expr2.equals("int"))
-//            throw new Exception("Cannot apply + operator between " + pr_expr1 + " and " + pr_expr2);
-//        return "int";
-//        return null;
-//    }
+        String result_reg = newTemp();
+        emit('\t' + result_reg + " = add i32 " + pr_expr1 + ", " + pr_expr2 + '\n');
+        return result_reg;
+    }
 
-//    /**
-//     * f0 -> PrimaryExpression()
-//     * f1 -> "-"
-//     * f2 -> PrimaryExpression()
-//     */
-//    public String visit(MinusExpression n, SymbolTable symbol_table) throws Exception {
-//        String pr_expr1 = n.f0.accept(this, symbol_table);
-//        String pr_expr2 = n.f2.accept(this, symbol_table);
-//        if (!pr_expr1.equals("int") || !pr_expr2.equals("int"))
-//            throw new Exception("Cannot apply - operator between " + pr_expr1 + " and " + pr_expr2);
-//        return "int";
-//        return null;
-//    }
+    /**
+     * f0 -> PrimaryExpression()
+     * f1 -> "-"
+     * f2 -> PrimaryExpression()
+     */
+    public String visit(MinusExpression n, SymbolTable symbol_table) throws Exception {
+        String pr_expr1 = n.f0.accept(this, symbol_table);
+        String pr_expr2 = n.f2.accept(this, symbol_table);
+
+        String result_reg = newTemp();
+        emit('\t' + result_reg + " = sub i32 " + pr_expr1 + ", " + pr_expr2 + '\n');
+        return result_reg;
+    }
 
 
     /**
@@ -585,8 +583,12 @@ public class LoweringVisitor extends GJDepthFirst<String, SymbolTable> {
         String pr_expr_reg = n.f0.accept(this, symbol_table);
         String id = n.f2.accept(this, symbol_table);
 
-        System.out.println("id = " + id + " current class = " + current_class + " current_method = " + current_method);
-        String class_name = symbol_table.getTypeofIdentifier (pr_expr_var, current_class, current_method);
+        System.out.println("id = " + id + " pr_expr_var = " + pr_expr_var + " current class = " + current_class + " current_method = " + current_method);
+
+        String class_name=pr_expr_var;
+        if (!symbol_table.containsClass(pr_expr_var)) {
+            class_name = symbol_table.getTypeofIdentifier (pr_expr_var, current_class, current_method);
+        }
         System.out.println("message send class_name = " + class_name);
         MethodContents method_contents = symbol_table.getMethodContents(class_name, id);
         String signature = getMethodSignature(method_contents);
@@ -609,10 +611,11 @@ public class LoweringVisitor extends GJDepthFirst<String, SymbolTable> {
         String signature_pointer = newTemp();
         emit ('\t' + signature_pointer + " = bitcast i8* " + function_pointer + " to " + signature + '\n');
 
+        n.f4.accept(this, symbol_table);
+
         String call_reg = newTemp();
         emit('\t' + call_reg + " = call " + "i32 " + signature_pointer +  "(i8* " + pr_expr_reg);
 
-        n.f4.accept(this, symbol_table);
 
         if (!argument_stack.empty() && !argument_stack.peek().equals("(")) {
             //TODO: na dw mipos ta kanw emit apeutheias sto expressionlist
@@ -717,15 +720,14 @@ public class LoweringVisitor extends GJDepthFirst<String, SymbolTable> {
 ////        return "false";
 //        return null;
 //    }
-//
-//
-//    /**
-//     * f0 -> "this"
-//     */
-//    public String visit(ThisExpression n, SymbolTable symbol_table) throws Exception {
-//        return "this";
-//        return null;
-//    }
+
+    /**
+     * f0 -> "this"
+     */
+    public String visit(ThisExpression n, SymbolTable symbol_table) throws Exception {
+        pr_expr_var = current_class;
+        return "%this";
+    }
 //
 //
 //    /**
@@ -765,6 +767,8 @@ public class LoweringVisitor extends GJDepthFirst<String, SymbolTable> {
      */
     public String visit(AllocationExpression n, SymbolTable symbol_table) throws Exception {
         String allocation_class = n.f1.accept(this, symbol_table);
+
+        pr_expr_var = allocation_class;
 
         //%result = call i8* @calloc(i32 1, i32 %val)
         String calloc_reg = newTemp();
