@@ -16,6 +16,7 @@ public class LoweringVisitor extends GJDepthFirst<String, SymbolTable> {
     private int current_if_label_num;
     private String pr_expr_var;
     private final HashMap<String, Integer> methods_number;
+    private LinkedHashMap<String, String> parameters_map;
     private final Stack<String> argument_stack;
 
 
@@ -26,7 +27,6 @@ public class LoweringVisitor extends GJDepthFirst<String, SymbolTable> {
         current_reg_num = 0;
         methods_number = new HashMap<>();
         argument_stack = new Stack<>();
-
     }
 
     private String newTemp() {
@@ -65,11 +65,8 @@ public class LoweringVisitor extends GJDepthFirst<String, SymbolTable> {
 
     String getMethodSignature (MethodContents current_method_contents) {
         StringBuilder buf= new StringBuilder();
-
         buf.append(getLLVMType(current_method_contents.getReturnType())).append(" (");
-
         LinkedList<String> parameter_types = current_method_contents.getParameterTypes();
-
         buf.append("i8*"); //*this* pointer
 
         for (String current_parameter_type : parameter_types) {
@@ -77,6 +74,20 @@ public class LoweringVisitor extends GJDepthFirst<String, SymbolTable> {
         }
         buf.append(")*");
         return buf.toString();
+    }
+
+    String emitClassFieldCode (String llvm_type) {
+        //    %_1 = getelementptr i8, i8* %this, i32 8
+        String field_pointer_reg = newTemp();
+
+        //TODO edw xreiazontai offsets
+        //TODO na dw ti ginetai me tin dilwsi pediwn goneikwn klasewn
+        emit('\t' + field_pointer_reg + " = getelementptr i8, i8* %this, i32 " + "8" + '\n');
+
+        //    %_2 = bitcast i8* %_1 to i32*
+        String bitcast_reg = newTemp();
+        emit('\t' + bitcast_reg + " = bitcast i8* " + field_pointer_reg + " to " + llvm_type + "*\n");
+        return bitcast_reg;
     }
 
     void declareVTables(SymbolTable symbol_table) {
@@ -96,16 +107,6 @@ public class LoweringVisitor extends GJDepthFirst<String, SymbolTable> {
                         if (!method_set.add(current_method_contents.getMethodName())) continue;
                         buf.append("\ti8* bitcast(").append(getMethodSignature(current_method_contents));
                         buf.append(" @").append(current_class_contents.getClassName()).append(".").append(current_method_contents.getMethodName()).append(" to i8*)\n");
-
-
-//                        LinkedList<String> parameter_types = current_method_contents.getParameterTypes();
-//
-//                        buf.append("i8*"); //*this* pointer
-//
-//                        for (String current_parameter_type : parameter_types) {
-//                            buf.append(", ").append(getLLVMType(current_parameter_type));
-//                        }
-//                        buf.append(")* @").append(current_class_contents.getClassName()).append(".").append(current_method_name).append(" to i8*)\n");
                     }
                     parent_class = current_class_contents.getParentClass();
                 }while (parent_class != null && (current_class_contents = symbol_table.getClassContents(parent_class))!=null);
@@ -210,33 +211,29 @@ public class LoweringVisitor extends GJDepthFirst<String, SymbolTable> {
      */
     public String visit(ClassDeclaration n, SymbolTable symbol_table) throws Exception {
         current_class = n.f1.accept(this, symbol_table);
-        n.f3.accept(this, symbol_table);
+        //n.f3.accept(this, symbol_table);
         n.f4.accept(this, symbol_table);
         return null;
     }
-//
-//
-//    /**
-//     * f0 -> "class"
-//     * f1 -> Identifier()
-//     * f2 -> "extends"
-//     * f3 -> Identifier()
-//     * f4 -> "{"
-//     * f5 -> ( VarDeclaration() )*
-//     * f6 -> ( MethodDeclaration() )*
-//     * f7 -> "}"
-//     */
-//    public String visit(ClassExtendsDeclaration n, SymbolTable symbol_table) throws Exception {
-//        String classname = n.f1.accept(this, symbol_table);
-//        String parentclass = n.f3.accept(this, symbol_table);
-//
-//        current_class = classname;
-//
-//        n.f5.accept(this, symbol_table);
-//        n.f6.accept(this, symbol_table);
-//        return null;
-//    }
-//
+
+
+    /**
+     * f0 -> "class"
+     * f1 -> Identifier()
+     * f2 -> "extends"
+     * f3 -> Identifier()
+     * f4 -> "{"
+     * f5 -> ( VarDeclaration() )*
+     * f6 -> ( MethodDeclaration() )*
+     * f7 -> "}"
+     */
+    public String visit(ClassExtendsDeclaration n, SymbolTable symbol_table) throws Exception {
+        current_class = n.f1.accept(this, symbol_table);
+        //n.f5.accept(this, symbol_table);
+        n.f6.accept(this, symbol_table);
+        return null;
+    }
+
     /**
      * f0 -> "public"
      * f1 -> Type()
@@ -253,31 +250,45 @@ public class LoweringVisitor extends GJDepthFirst<String, SymbolTable> {
      * f12 -> "}"
      */
     public String visit(MethodDeclaration n, SymbolTable symbol_table) throws Exception {
+        current_reg_num = 0;
         String declaration_return_type = n.f1.accept(this, symbol_table);
         current_method = n.f2.accept(this, symbol_table);
+        parameters_map = new LinkedHashMap<>();
 
+        emit("\ndefine " + declaration_return_type + " @" + current_class + '.' + current_method + "(i8* %this");
         n.f4.accept(this, symbol_table);
+        emit (") {\n");
 
+        for (Map.Entry<String, String> field_entry : parameters_map.entrySet()) {
+            String parameter_id = field_entry.getKey();
+            String parameter_llvm_type = field_entry.getValue();
+            emit("\t%" + parameter_id + " = alloca " + parameter_llvm_type + '\n');
+            emit("\tstore " + parameter_llvm_type + " %." + parameter_id + ", " + parameter_llvm_type + "* %" + parameter_id + '\n');
+        }
+        parameters_map = null;
         n.f7.accept(this, symbol_table);
         n.f8.accept(this, symbol_table);
 
-        String actual_return_type = n.f10.accept(this, symbol_table);
+        String return_expr = n.f10.accept(this, symbol_table);
+        emit("\tret i32 " + return_expr + "\n}\n");
+
         return null;
     }
-//
-//    /**
-//     * f0 -> Type()
-//     * f1 -> Identifier()
-//     */
-//    public String visit(FormalParameter n, SymbolTable symbol_table) throws Exception {
-//        String type = n.f0.accept(this, symbol_table);
-//        String param = n.f1.accept(this, symbol_table);
-//
-//        if (!type.equals("int") && !type.equals("boolean") && !type.equals("int[]") && !type.equals("boolean[]") && !symbol_table.containsClass(type))
-//            throw new Exception("Unknown type " + type + " of var " + param);
 
-//        return null;
-//    }
+    /**
+     * f0 -> Type()
+     * f1 -> Identifier()
+     */
+    public String visit(FormalParameter n, SymbolTable symbol_table) throws Exception {
+        String java_type = n.f0.accept(this, symbol_table);
+        String id = n.f1.accept(this, symbol_table);
+
+        String llvm_type = getLLVMType(java_type);
+        parameters_map.put(id, llvm_type);
+
+        emit(", " + llvm_type + " %." + id);
+        return null;
+    }
 //
 //    /**
 //     * f0 -> "boolean"
@@ -335,8 +346,11 @@ public class LoweringVisitor extends GJDepthFirst<String, SymbolTable> {
         String expr = n.f2.accept(this, symbol_table);
         //System.out.println ("expr = " + expr);
 
-        //store i32 %val, i32* %ptr
-        emit("\tstore " + llvm_type + " " + expr + ", " + llvm_type + "* %" + id + '\n');
+        if (symbol_table.isClassField(id, current_class, current_method)) {
+            String field_reg = emitClassFieldCode(llvm_type);
+            emit("\tstore " + llvm_type + " " + expr + ", " + llvm_type + "* " + field_reg + '\n');
+        }
+        else emit("\tstore " + llvm_type + " " + expr + ", " + llvm_type + "* %" + id + '\n');
 
         return null;
     }
@@ -594,13 +608,13 @@ public class LoweringVisitor extends GJDepthFirst<String, SymbolTable> {
         String signature_pointer = newTemp();
         emit ('\t' + signature_pointer + " = bitcast i8* " + function_pointer + " to " + signature + '\n');
 
-        //%_12 = call i32 %_11(i8* %_6, i32 1)
         String call_reg = newTemp();
         emit('\t' + call_reg + " = call " + "i32 " + signature_pointer +  "(i8* " + pr_expr_reg);
 
         n.f4.accept(this, symbol_table);
 
         if (!argument_stack.empty() && !argument_stack.peek().equals("(")) {
+            //TODO: na dw mipos ta kanw emit apeutheias sto expressionlist
             do {
                 String expression = argument_stack.pop();
                 if(isNumeric(expression)) {
@@ -664,13 +678,18 @@ public class LoweringVisitor extends GJDepthFirst<String, SymbolTable> {
         }
         else {
             pr_expr_var = expression;
-            String temp_reg = newTemp();
-
             String java_type = symbol_table.getTypeofIdentifier(expression, current_class, current_method);
             String llvm_type = getLLVMType(java_type);
+            String temp_reg;
+            if (symbol_table.isClassField(expression, current_class, current_method)) {
+                String field_reg = emitClassFieldCode(llvm_type);
+                temp_reg = newTemp();
+                emit("\t" + temp_reg + " = load " + llvm_type + ", " + llvm_type + "* " + field_reg + '\n');
+            } else {
+                temp_reg = newTemp();
+                emit("\t" + temp_reg + " = load " + llvm_type + ", " + llvm_type + "* %" + expression + '\n');
+            }
 
-            //%val = load i32, i32* %ptr
-            emit("\t" + temp_reg + " = load " + llvm_type + ", " + llvm_type + "* %" + expression + '\n');
             return temp_reg;
         }
     }
@@ -748,6 +767,8 @@ public class LoweringVisitor extends GJDepthFirst<String, SymbolTable> {
 
         //%result = call i8* @calloc(i32 1, i32 %val)
         String calloc_reg = newTemp();
+
+        //TODO edw xreiazontai offsets
         emit ("\n\t" + calloc_reg + " = call i8* @calloc(i32 1, i32 " + "12)\n");
 
         //%ptr = bitcast i32* %ptr2 to i8**

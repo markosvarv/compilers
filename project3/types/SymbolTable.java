@@ -177,6 +177,32 @@ public class SymbolTable {
         return "";
     }
 
+    public boolean isClassField (String id, String class_name, String method_name) {
+        ClassContents current_class_contents = symbol_table.get(class_name);
+        if (current_class_contents == null) {
+            System.err.println("Cannot find class " + class_name + " in symbol table, identifier: " + id);
+        }
+
+        assert current_class_contents != null;
+        MethodContents method_contents = current_class_contents.methods.get(method_name);
+        if (method_contents == null) {
+            System.err.println("Cannot find method " + method_name + " in class " + class_name + " identifier: " + id);
+        }
+
+        assert method_contents != null;
+        if (method_contents.parameters.containsKey(id)) return false;
+        if (method_contents.variables.containsKey(id)) return false;
+
+        if (current_class_contents.fields.containsKey(id)) return true;
+
+        //search for the variable in parent classes
+        while (current_class_contents.parent_class != null){
+            current_class_contents = symbol_table.get(current_class_contents.parent_class);
+            if (current_class_contents.fields.containsKey(id)) return true;
+        }
+        return false;
+    }
+
     public MethodContents getMethodContents (String class_name, String method_name){
         ClassContents class_contents = symbol_table.get(class_name);
         if (class_contents == null) {
