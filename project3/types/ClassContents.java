@@ -5,6 +5,8 @@ import java.util.*;
 public class ClassContents {
     LinkedHashMap<String, String> fields;
     LinkedHashMap <String, MethodContents> methods;
+    LinkedHashMap<String, Integer> field_offsets;
+    LinkedHashMap<String, Integer> method_offsets;
     String class_name;
     String parent_class;
     boolean is_main;
@@ -14,9 +16,14 @@ public class ClassContents {
     public ClassContents (String given_class_name, String given_parent_class, boolean main_class) {
         fields = new LinkedHashMap<>();
         methods = new LinkedHashMap<>();
+        field_offsets = new LinkedHashMap<>();
         class_name = given_class_name;
         parent_class = given_parent_class;
         is_main = main_class;
+    }
+
+    public int getFields_offset_sum() {
+        return fields_offset_sum;
     }
 
     public boolean getIsMain() {

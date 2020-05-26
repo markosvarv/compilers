@@ -27,7 +27,7 @@ class Main {
                 try {
                     root.accept(eval, symbol_table);
                     root.accept(type_ch, symbol_table);
-                    symbol_table.printOffsets();
+                    symbol_table.calculateOffsets();
                     root.accept(ll_visitor, symbol_table);
                 }catch (Exception exc) {
                     System.err.println("Error: " + exc.getMessage());

@@ -585,6 +585,12 @@ public class LoweringVisitor extends GJDepthFirst<String, SymbolTable> {
         String pr_expr_reg = n.f0.accept(this, symbol_table);
         String id = n.f2.accept(this, symbol_table);
 
+        System.out.println("id = " + id + " current class = " + current_class + " current_method = " + current_method);
+        String class_name = symbol_table.getTypeofIdentifier (pr_expr_var, current_class, current_method);
+        System.out.println("message send class_name = " + class_name);
+        MethodContents method_contents = symbol_table.getMethodContents(class_name, id);
+        String signature = getMethodSignature(method_contents);
+
         //%ptr = bitcast i32* %ptr2 to i8**
         String bitcast_reg = newTemp();
         emit("\n\t" + bitcast_reg + " = bitcast i8* " + pr_expr_reg + " to i8***\n");
@@ -593,18 +599,12 @@ public class LoweringVisitor extends GJDepthFirst<String, SymbolTable> {
         String load_reg = newTemp();
         emit('\t' + load_reg + " = load i8**, i8*** " + bitcast_reg + '\n');
 
+        System.out.println("method " + method_contents.getMethodName() + " offset = " + method_contents.getMethodOffset());
         String element_pointer = newTemp();
-        emit('\t' + element_pointer + " = getelementptr i8*, i8** " + load_reg + ", i32 " + "0" + '\n');
+        emit('\t' + element_pointer + " = getelementptr i8*, i8** " + load_reg + ", i32 " + method_contents.getMethodOffset() + '\n');
 
         String function_pointer = newTemp();
         emit('\t' + function_pointer + " = load i8*, i8** " + element_pointer + '\n');
-
-        System.out.println("id = " + id + " current class = " + current_class + " current_method = " + current_method);
-        String class_name = symbol_table.getTypeofIdentifier (pr_expr_var, current_class, current_method);
-        System.out.println("class_name = " + class_name);
-        MethodContents method_contents = symbol_table.getMethodContents(class_name, id);
-        String signature = getMethodSignature(method_contents);
-        System.out.println("method " + id + " signature = " + signature);
 
         String signature_pointer = newTemp();
         emit ('\t' + signature_pointer + " = bitcast i8* " + function_pointer + " to " + signature + '\n');
@@ -769,8 +769,11 @@ public class LoweringVisitor extends GJDepthFirst<String, SymbolTable> {
         //%result = call i8* @calloc(i32 1, i32 %val)
         String calloc_reg = newTemp();
 
-        //TODO edw xreiazontai offsets
-        emit ("\n\t" + calloc_reg + " = call i8* @calloc(i32 1, i32 " + "12)\n");
+        ClassContents class_contents = symbol_table.getClassContents(allocation_class);
+
+        System.out.println("class " + class_contents.getClassName() + " offset sum = " + class_contents.getFields_offset_sum());
+
+        emit ("\n\t" + calloc_reg + " = call i8* @calloc(i32 1, i32 " + (8 + class_contents.getFields_offset_sum()) + ")\n");
 
         //%ptr = bitcast i32* %ptr2 to i8**
         String bitcast_reg = newTemp();

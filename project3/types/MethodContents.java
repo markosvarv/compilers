@@ -7,6 +7,8 @@ public class MethodContents {
     String return_type;
     Boolean override_method;
 
+    int method_offset;
+
     LinkedHashMap <String, String> parameters;
     LinkedHashMap <String, String> variables;
 
@@ -18,6 +20,9 @@ public class MethodContents {
         override_method = false;
     }
 
+    public int getMethodOffset() {
+        return method_offset;
+    }
 
     public boolean parametersAdd (String type, String name) {
         return parameters.putIfAbsent(name, type) == null;

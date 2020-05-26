@@ -101,11 +101,11 @@ public class SymbolTable {
     }
 
 
-    public void printOffsets () {
+    public void calculateOffsets () {
         for (Map.Entry<String, ClassContents> class_entry : symbol_table.entrySet()) {
-            String class_key = class_entry.getKey();
+            //String class_key = class_entry.getKey();
             ClassContents current_class_contents = class_entry.getValue();
-            if (!current_class_contents.is_main) System.out.println("\n-----Class: " + current_class_contents.class_name + "-----");
+            //if (!current_class_contents.is_main) System.out.println("\n-----Class: " + current_class_contents.class_name + "-----");
 
             if (current_class_contents.parent_class==null) {
                 current_class_contents.fields_offset_sum = 0;
@@ -120,7 +120,7 @@ public class SymbolTable {
                 current_class_contents.fields_offset_sum = parent_class_contents.fields_offset_sum;
                 current_class_contents.methods_offset_sum = parent_class_contents.methods_offset_sum;
             }
-            if (!current_class_contents.is_main) System.out.println("--Variables--");
+            //if (!current_class_contents.is_main) System.out.println("--Variables--");
             for (Map.Entry<String, String> field_entry : current_class_contents.fields.entrySet()) {
                 String field_key = field_entry.getKey();
                 String current_field_type = field_entry.getValue();
@@ -135,16 +135,18 @@ public class SymbolTable {
                     default:
                         current_offset = 8;
                 }
-                System.out.println(class_key + '.' + field_key + " : " + current_class_contents.fields_offset_sum);
+                //System.out.println(class_key + '.' + field_key + " : " + current_class_contents.fields_offset_sum);
+                current_class_contents.field_offsets.put(field_key, current_class_contents.fields_offset_sum);
                 current_class_contents.fields_offset_sum += current_offset;
             }
-            if (!current_class_contents.is_main) System.out.println("---Methods---");
+            //if (!current_class_contents.is_main) System.out.println("---Methods---");
             for (Map.Entry<String, MethodContents> method_entry : current_class_contents.methods.entrySet()) {
                 String method_key = method_entry.getKey();
                 MethodContents current_method_contents = method_entry.getValue();
                 if (current_class_contents.is_main) continue; //for Main class
                 if (!current_method_contents.override_method) {
-                    System.out.println(class_key + '.' + method_key + " : " + current_class_contents.methods_offset_sum);
+                    //System.out.println(class_key + '.' + method_key + " : " + current_class_contents.methods_offset_sum);
+                    current_method_contents.method_offset = current_class_contents.methods_offset_sum;
                     current_class_contents.methods_offset_sum += 8;
                 }
             }
