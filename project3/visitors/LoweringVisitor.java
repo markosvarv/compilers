@@ -106,10 +106,12 @@ public class LoweringVisitor extends GJDepthFirst<String, SymbolTable> {
                     for (MethodContents current_method_contents : methods) {
                         if (!method_set.add(current_method_contents.getMethodName())) continue;
                         buf.append("\ti8* bitcast(").append(getMethodSignature(current_method_contents));
-                        buf.append(" @").append(current_class_contents.getClassName()).append(".").append(current_method_contents.getMethodName()).append(" to i8*)\n");
+                        buf.append(" @").append(current_class_contents.getClassName()).append(".").append(current_method_contents.getMethodName()).append(" to i8*),\n");
                     }
                     parent_class = current_class_contents.getParentClass();
                 }while (parent_class != null && (current_class_contents = symbol_table.getClassContents(parent_class))!=null);
+                //delete the last comma
+                buf.deleteCharAt(buf.length()-2);
                 buf.append("]\n\n");
                 emit(method_set.size() + " x i8*] [\n" + buf.toString());
                 methods_number.put(class_name, method_set.size());
@@ -175,7 +177,7 @@ public class LoweringVisitor extends GJDepthFirst<String, SymbolTable> {
                 "\tcall i32 (i8*, ...) @printf(i8* %_str)\n" +
                 "\tcall void @exit(i32 1)\n" +
                 "\tret void\n" +
-                "}\n");
+                "}\n\n");
 
         emit("define i32 @main() {\n");
 
@@ -255,7 +257,7 @@ public class LoweringVisitor extends GJDepthFirst<String, SymbolTable> {
         current_method = n.f2.accept(this, symbol_table);
         parameters_map = new LinkedHashMap<>();
 
-        emit("\ndefine " + declaration_return_type + " @" + current_class + '.' + current_method + "(i8* %this");
+        emit("\ndefine " + getLLVMType(declaration_return_type) + " @" + current_class + '.' + current_method + "(i8* %this");
         n.f4.accept(this, symbol_table);
         emit (") {\n");
 
@@ -524,21 +526,20 @@ public class LoweringVisitor extends GJDepthFirst<String, SymbolTable> {
 //    }
 
 
-//    /**
-//     * f0 -> PrimaryExpression()
-//     * f1 -> "*"
-//     * f2 -> PrimaryExpression()
-//     */
-//    public String visit(TimesExpression n, SymbolTable symbol_table) throws Exception {
-////        String pr_expr1 = n.f0.accept(this, symbol_table);
-////
-////        String pr_expr2 = n.f2.accept(this, symbol_table);
-////        if (!pr_expr1.equals("int") || !pr_expr2.equals("int"))
-////            throw new Exception("Cannot apply * operator between " + pr_expr1 + " and " + pr_expr2);
-////
-////        return "int";
-//        return null;
-//    }
+    /**
+     * f0 -> PrimaryExpression()
+     * f1 -> "*"
+     * f2 -> PrimaryExpression()
+     */
+    public String visit(TimesExpression n, SymbolTable symbol_table) throws Exception {
+        String pr_expr1 = n.f0.accept(this, symbol_table);
+        String pr_expr2 = n.f2.accept(this, symbol_table);
+
+        //%sum = mul i32 %a, %b
+        String result_reg = newTemp();
+        emit('\t' + result_reg + " = mul i32 " + pr_expr1 + ", " + pr_expr2 + '\n');
+        return result_reg;
+    }
 
 //
 //    /**
