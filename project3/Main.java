@@ -28,10 +28,10 @@ class Main {
                     root.accept(eval, symbol_table);
                     root.accept(type_ch, symbol_table);
                     symbol_table.calculateOffsets();
-                    root.accept(ll_visitor, symbol_table);
                 }catch (Exception exc) {
                     System.err.println("Error: " + exc.getMessage());
                 }
+                root.accept(ll_visitor, symbol_table);
             }
             catch(ParseException ex){
                 System.out.println(ex.getMessage());

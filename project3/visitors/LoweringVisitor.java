@@ -80,15 +80,13 @@ public class LoweringVisitor extends GJDepthFirst<String, SymbolTable> {
         return buf.toString();
     }
 
-    String emitClassFieldCode (String llvm_type) throws IOException {
-        //    %_1 = getelementptr i8, i8* %this, i32 8
+    String emitClassFieldCode (ClassContents class_contents, String field, String llvm_type) throws IOException {
+        //%_1 = getelementptr i8, i8* %this, i32 8
         String field_pointer_reg = newTemp();
 
-        //TODO edw xreiazontai offsets
-        //TODO na dw ti ginetai me tin dilwsi pediwn goneikwn klasewn
-        emit('\t' + field_pointer_reg + " = getelementptr i8, i8* %this, i32 " + "8" + '\n');
+        emit('\t' + field_pointer_reg + " = getelementptr i8, i8* %this, i32 " + class_contents.getFieldOffset(field) + '\n');
 
-        //    %_2 = bitcast i8* %_1 to i32*
+        //%_2 = bitcast i8* %_1 to i32*
         String bitcast_reg = newTemp();
         emit('\t' + bitcast_reg + " = bitcast i8* " + field_pointer_reg + " to " + llvm_type + "*\n");
         return bitcast_reg;
@@ -348,8 +346,9 @@ public class LoweringVisitor extends GJDepthFirst<String, SymbolTable> {
         String expr = n.f2.accept(this, symbol_table);
         //System.out.println ("expr = " + expr);
 
-        if (symbol_table.isClassField(id, current_class, current_method)) {
-            String field_reg = emitClassFieldCode(llvm_type);
+        ClassContents field_class_contents = symbol_table.getFieldClassContents(id, current_class, current_method);
+        if (field_class_contents != null) {
+            String field_reg = emitClassFieldCode(field_class_contents, id, llvm_type);
             emit("\tstore " + llvm_type + " " + expr + ", " + llvm_type + "* " + field_reg + '\n');
         }
         else emit("\tstore " + llvm_type + " " + expr + ", " + llvm_type + "* %" + id + '\n');
@@ -685,8 +684,9 @@ public class LoweringVisitor extends GJDepthFirst<String, SymbolTable> {
             String java_type = symbol_table.getTypeofIdentifier(expression, current_class, current_method);
             String llvm_type = getLLVMType(java_type);
             String temp_reg;
-            if (symbol_table.isClassField(expression, current_class, current_method)) {
-                String field_reg = emitClassFieldCode(llvm_type);
+            ClassContents field_class_contents = symbol_table.getFieldClassContents(expression, current_class, current_method);
+            if (field_class_contents != null) {
+                String field_reg = emitClassFieldCode(field_class_contents, expression, llvm_type);
                 temp_reg = newTemp();
                 emit("\t" + temp_reg + " = load " + llvm_type + ", " + llvm_type + "* " + field_reg + '\n');
             } else {

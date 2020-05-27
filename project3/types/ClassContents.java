@@ -22,6 +22,10 @@ public class ClassContents {
         is_main = main_class;
     }
 
+    public int getFieldOffset(String field) {
+        return field_offsets.get(field);
+    }
+
     public int getFields_offset_sum() {
         return fields_offset_sum;
     }
