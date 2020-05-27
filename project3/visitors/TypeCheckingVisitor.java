@@ -414,7 +414,7 @@ public class TypeCheckingVisitor extends GJDepthFirst<String, SymbolTable>{
         LinkedList<String> parameter_types = method_contents.getParameterTypes();
 
         n.f4.accept(this, symbol_table);
-        LinkedList<String> argument_list = new LinkedList<String>();
+        LinkedList<String> argument_list = new LinkedList<>();
 
         if (!argument_stack.empty() && !argument_stack.peek().equals("(")) {
             do argument_list.addFirst(argument_stack.pop());

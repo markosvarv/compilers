@@ -600,9 +600,8 @@ public class LoweringVisitor extends GJDepthFirst<String, SymbolTable> {
         String load_reg = newTemp();
         emit('\t' + load_reg + " = load i8**, i8*** " + bitcast_reg + '\n');
 
-        System.out.println("method " + method_contents.getMethodName() + " offset = " + method_contents.getMethodOffset());
         String element_pointer = newTemp();
-        emit('\t' + element_pointer + " = getelementptr i8*, i8** " + load_reg + ", i32 " + method_contents.getMethodOffset() + '\n');
+        emit('\t' + element_pointer + " = getelementptr i8*, i8** " + load_reg + ", i32 " + (method_contents.getMethodOffset()/8) + '\n');
 
         String function_pointer = newTemp();
         emit('\t' + function_pointer + " = load i8*, i8** " + element_pointer + '\n');
@@ -615,25 +614,20 @@ public class LoweringVisitor extends GJDepthFirst<String, SymbolTable> {
         String call_reg = newTemp();
         emit('\t' + call_reg + " = call " + "i32 " + signature_pointer +  "(i8* " + pr_expr_reg);
 
-
+        LinkedList<String> argument_types = method_contents.getParameterTypes();
+        LinkedList<String> argument_values = new LinkedList<>();
         if (!argument_stack.empty() && !argument_stack.peek().equals("(")) {
-            //TODO: na dw mipos ta kanw emit apeutheias sto expressionlist
-            do {
-                String expression = argument_stack.pop();
-                if(isNumeric(expression)) {
-                    emit(", i32 " + expression);
-                } else {
-                    emit(", " + expression);
-                }
-
-            } while (!argument_stack.peek().equals("("));
+            do argument_values.addFirst(argument_stack.pop());
+            while (!argument_stack.peek().equals("("));
             String lparen = argument_stack.pop();
             if (!lparen.equals("(")) throw new Exception("Unexpected error in message send stack");
         }
+        for (String current_type : argument_types) {
+            emit(", " + getLLVMType(current_type) + ' ' + argument_values.pop());
+        }
+        if (!argument_values.isEmpty()) throw new Exception("Unexpected error in message send");
 
         emit(")\n\n");
-
-
         return call_reg;
 
 
@@ -793,14 +787,13 @@ public class LoweringVisitor extends GJDepthFirst<String, SymbolTable> {
         return calloc_reg;
     }
 
-//    /**
-//     * f0 -> "("
-//     * f1 -> Expression()
-//     * f2 -> ")"
-//     */
-//    public String visit(BracketExpression n, SymbolTable symbol_table) throws Exception {
-//        return n.f1.accept(this, symbol_table);
-//        return null;
-//    }
+    /**
+     * f0 -> "("
+     * f1 -> Expression()
+     * f2 -> ")"
+     */
+    public String visit(BracketExpression n, SymbolTable symbol_table) throws Exception {
+        return n.f1.accept(this, symbol_table);
+    }
 
 }
