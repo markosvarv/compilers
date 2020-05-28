@@ -39,6 +39,11 @@ public class LoweringVisitor extends GJDepthFirst<String, SymbolTable> {
         return "if" + current_if_label_num++;
     }
 
+    private String newOobLabel() {
+        return "oob" + current_if_label_num++;
+    }
+
+
     private static boolean isNumeric(String str) {
         if (str==null) return false;
         try {
@@ -61,6 +66,10 @@ public class LoweringVisitor extends GJDepthFirst<String, SymbolTable> {
                 return "i32";
             case "boolean":
                 return "i1";
+            case "int[]":
+                return "i32*";
+            //case "boolean[]":
+                //return TODO
             default:
                 return "i8*";
                 //throw new Exception ("cannot determine type " + java_type);
@@ -90,6 +99,17 @@ public class LoweringVisitor extends GJDepthFirst<String, SymbolTable> {
         String bitcast_reg = newTemp();
         emit('\t' + bitcast_reg + " = bitcast i8* " + field_pointer_reg + " to " + llvm_type + "*\n");
         return bitcast_reg;
+    }
+
+    private String getArrayElementReg (String array_ptr_reg, String index) throws IOException {
+        //%_9 = add i32 1, 0
+        String index_reg = newTemp();
+        emit('\t' + index_reg + " = add i32 1, " + index + '\n');
+
+        //%_10 = getelementptr i32, i32* %_4, i32 %_9
+        String array_element_reg = newTemp();
+        emit('\t' + array_element_reg + " = getelementptr i32, i32* " + array_ptr_reg + ", i32 " + index_reg + '\n');
+        return array_element_reg;
     }
 
     void declareVTables(SymbolTable symbol_table) throws IOException {
@@ -289,27 +309,25 @@ public class LoweringVisitor extends GJDepthFirst<String, SymbolTable> {
         emit(", " + llvm_type + " %." + id);
         return null;
     }
-//
-//    /**
-//     * f0 -> "boolean"
-//     * f1 -> "["
-//     * f2 -> "]"
-//     */
-//    public String visit(BooleanArrayType n, SymbolTable symbol_table) throws Exception {
-//        return "boolean[]";
-//        return null;
-//    }
-//
-//    /**
-//     * f0 -> "int"
-//     * f1 -> "["
-//     * f2 -> "]"
-//     */
-//    public String visit(IntegerArrayType n, SymbolTable symbol_table) throws Exception {
-//        //return "int[]";
-//        return null;
-//    }
-//
+
+    /**
+     * f0 -> "boolean"
+     * f1 -> "["
+     * f2 -> "]"
+     */
+    public String visit(BooleanArrayType n, SymbolTable symbol_table) throws Exception {
+        return "boolean[]";
+    }
+
+    /**
+     * f0 -> "int"
+     * f1 -> "["
+     * f2 -> "]"
+     */
+    public String visit(IntegerArrayType n, SymbolTable symbol_table) throws Exception {
+        return "int[]";
+    }
+
 //    /**
 //     * f0 -> "boolean"
 //     */
@@ -357,36 +375,42 @@ public class LoweringVisitor extends GJDepthFirst<String, SymbolTable> {
     }
 
 
-//    /**
-//     * f0 -> Identifier()
-//     * f1 -> "["
-//     * f2 -> Expression()
-//     * f3 -> "]"
-//     * f4 -> "="
-//     * f5 -> Expression()
-//     * f6 -> ";"
-//     */
-//    public String visit(ArrayAssignmentStatement n, SymbolTable symbol_table) throws Exception {
-//        String expr_type = n.f2.accept(this, symbol_table);
-//        if (!expr_type.equals("int")) throw new Exception("Array intex type is " + expr_type + ", not int");
-//
-//        String id = n.f0.accept(this, symbol_table);
-//
-//        expr_type = n.f5.accept(this, symbol_table);
-//        if (expr_type == null) throw new Exception("Expression type in assignment is null");
-//
-//        String id_type = symbol_table.getTypeofIdentifier(id, current_class, current_method);
-//        if (id_type.equals("") || id_type == null)
-//            throw new Exception("Cannot determine the type of identifier " + id);
-//        else if (id_type.equals("int[]")) {
-//            if (!expr_type.equals("int"))
-//                throw new Exception("Cannot assign " + expr_type + " to " + id_type + ". Assignment is not valid.");
-//        }else if (id_type.equals("boolean[]")) {
-//            if (!expr_type.equals("boolean"))
-//                throw new Exception("Cannot assign " + expr_type + " to " + id_type + ". Assignment is not valid.");
-//        }else throw new Exception("Cannot assign " + expr_type + " to " + id_type + ". Assignment is not valid.");
-//        return null;
-//    }
+    /**
+     * f0 -> Identifier()
+     * f1 -> "["
+     * f2 -> Expression()
+     * f3 -> "]"
+     * f4 -> "="
+     * f5 -> Expression()
+     * f6 -> ";"
+     */
+    public String visit(ArrayAssignmentStatement n, SymbolTable symbol_table) throws Exception {
+        String id = n.f0.accept(this, symbol_table);
+        String array_index = n.f2.accept(this, symbol_table);
+        String assignment_expr = n.f5.accept(this, symbol_table);
+
+        //%_4 = load i32*, i32** %x
+        String array_ptr_reg = newTemp();
+        emit('\t' + array_ptr_reg + " = load i32*, i32** %" + id + '\n');
+
+        emitArrayOobCode(array_ptr_reg, array_index);
+        String array_element_reg = getArrayElementReg(array_ptr_reg, array_index);
+
+//        String java_type = symbol_table.getTypeofIdentifier(id, current_class, current_method);
+//        String llvm_type = getLLVMType(java_type);
+
+        String llvm_type = "i32"; //TODO na dw ti ginetai me boolean arrays
+
+        //ClassContents field_class_contents = symbol_table.getFieldClassContents(id, current_class, current_method);
+//        if (field_class_contents != null) { //TODO na tsekarw auton ton kwdika
+//            String field_reg = emitClassFieldCode(field_class_contents, id, llvm_type);
+//            emit("\tstore " + llvm_type + " " + assignment_expr + ", " + llvm_type + "* " + field_reg + '\n');
+//        }
+        //else
+
+        emit("\tstore " + llvm_type + " " + assignment_expr + ", " + llvm_type + "* " + array_element_reg + '\n');
+        return null;
+    }
 
 
     /**
@@ -538,23 +562,55 @@ public class LoweringVisitor extends GJDepthFirst<String, SymbolTable> {
         return result_reg;
     }
 
-//
-//    /**
-//     * f0 -> PrimaryExpression()
-//     * f1 -> "["
-//     * f2 -> PrimaryExpression()
-//     * f3 -> "]"
-//     */
-//    public String visit(ArrayLookup n, SymbolTable symbol_table) throws Exception {
-////        String pr_expr_type = n.f2.accept(this, symbol_table);
-////        if (!pr_expr_type.equals("int")) throw new Exception("Array intex type is " + pr_expr_type + ", not int");
-////
-////        pr_expr_type = n.f0.accept(this, symbol_table);
-////        if (pr_expr_type.equals("int[]")) return "int";
-////        else if (pr_expr_type.equals("boolean[]")) return "boolean";
-////        else throw new Exception("Cannot apply array lookup to " + pr_expr_type);
-//        return null;
-//    }
+    public void emitArrayOobCode (String array_reg, String index) throws Exception {
+        //load the size of the array
+        //%_5 = load i32, i32* %_4
+
+        String array_size_reg = newTemp();
+        emit("\n\t" + array_size_reg + " = load i32, i32* " + array_reg + '\n');
+
+        int index_num;
+        if (isNumeric(index)) index_num = Integer.parseInt(index);
+        else throw new Exception("DEN EINAI NUMERIC"); //TODO
+
+        //%_7 = icmp slt i32 0, %_5
+        String check_index_reg = newTemp();
+        emit('\t' + check_index_reg + " = icmp slt i32 " + index_num + ", " + array_size_reg + '\n');
+
+        String ok_label = newOobLabel();
+        String error_label = newOobLabel();
+        emit("\tbr i1 " + check_index_reg + ", label %" + ok_label + ", label %" + error_label + '\n');
+
+        //label:
+        //call void @throw_oob()
+        //br label %oob_ok_0
+        emit("\n\t" + error_label + ":\n");
+        emit("\tcall void @throw_oob()\n");
+        emit("\tbr label %" + ok_label + '\n');
+        emit("\n\t" + ok_label + ":\n");
+    }
+
+
+    /**
+     * f0 -> PrimaryExpression()
+     * f1 -> "["
+     * f2 -> PrimaryExpression()
+     * f3 -> "]"
+     */
+    public String visit(ArrayLookup n, SymbolTable symbol_table) throws Exception {
+        String pr_expr_1 = n.f0.accept(this, symbol_table);
+        String pr_expr_2 = n.f2.accept(this, symbol_table);
+
+        //TODO na dw mipos xreiazetai na kanw load edw stin periptosi pou den einai numeric to index
+
+        emitArrayOobCode(pr_expr_1, pr_expr_2);
+        String element_reg_ptr = getArrayElementReg(pr_expr_1, pr_expr_2);
+
+        //%_25 = load i32, i32* %_24
+        String element_reg = newTemp();
+        emit('\t' + element_reg + " = load i32, i32* " + element_reg_ptr + '\n'); //TODO boolean arrays?
+        return element_reg;
+    }
 
 //    /**
 //     * f0 -> PrimaryExpression()
@@ -738,21 +794,52 @@ public class LoweringVisitor extends GJDepthFirst<String, SymbolTable> {
 //        return null;
 //    }
 //
-//    /**
-//     * f0 -> "new"
-//     * f1 -> "int"
-//     * f2 -> "["
-//     * f3 -> Expression()
-//     * f4 -> "]"
-//     */
-//    public String visit(IntegerArrayAllocationExpression n, SymbolTable symbol_table) throws Exception {
-//        String expr = n.f3.accept(this, symbol_table);
-//        if (!expr.equals("int")) throw new Exception("Array intex type is " + expr + ", not int");
-//        return "int[]";
-//        return null;
-//    }
-//
-//
+    /**
+     * f0 -> "new"
+     * f1 -> "int"
+     * f2 -> "["
+     * f3 -> Expression()
+     * f4 -> "]"
+     */
+    public String visit(IntegerArrayAllocationExpression n, SymbolTable symbol_table) throws Exception {
+        String expr = n.f3.accept(this, symbol_table);
+
+        String array_size_reg = newTemp();
+        emit('\t' + array_size_reg + " = add i32 1, " + expr + '\n');
+
+        //Check that the size of the array is not negative - since we added 1, we just check that the size is >= 1.
+
+        //%_1 = icmp sge i32 %_0, 1
+        String icmp_reg = newTemp();
+        emit('\t' + icmp_reg + " = icmp sge i32 " + array_size_reg + ", 1\n");
+
+        //br i1 %_1, label %nsz_ok_0, label %nsz_err_0
+        String ok_label = newOobLabel();
+        String error_label = newOobLabel();
+        emit("\tbr i1 " + icmp_reg + ", label %" + ok_label + ", label %" + error_label + '\n');
+
+        //label:
+        //call void @throw_oob()
+        //br label %oob_ok_0
+        emit("\n\t" + error_label + ":\n");
+        emit("\tcall void @throw_oob()\n");
+        emit("\tbr label %" + ok_label + '\n');
+        emit("\n\t" + ok_label + ":\n");
+
+        String calloc_reg = newTemp();
+        emit('\t' + calloc_reg + " = call i8* @calloc(i32 " + array_size_reg + ", i32 4)\n");
+
+        String bitcast_reg = newTemp();
+        emit('\t' + bitcast_reg + " = bitcast i8* " + calloc_reg + " to i32*\n");
+
+        emit("\tstore i32 " + expr + ", i32* " + bitcast_reg + '\n');
+
+        //store i32* %_3, i32** %x
+        //emit("\tstore i32* " + bitcast_reg + ", i32**");
+
+        return bitcast_reg;
+    }
+
     /**
      * f0 -> "new"
      * f1 -> Identifier()
@@ -769,7 +856,7 @@ public class LoweringVisitor extends GJDepthFirst<String, SymbolTable> {
 
         ClassContents class_contents = symbol_table.getClassContents(allocation_class);
 
-        System.out.println("class " + class_contents.getClassName() + " offset sum = " + class_contents.getFields_offset_sum());
+        //System.out.println("class " + class_contents.getClassName() + " offset sum = " + class_contents.getFields_offset_sum());
 
         emit ("\n\t" + calloc_reg + " = call i8* @calloc(i32 1, i32 " + (8 + class_contents.getFields_offset_sum()) + ")\n");
 
