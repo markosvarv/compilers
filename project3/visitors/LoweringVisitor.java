@@ -328,13 +328,12 @@ public class LoweringVisitor extends GJDepthFirst<String, SymbolTable> {
         return "int[]";
     }
 
-//    /**
-//     * f0 -> "boolean"
-//     */
-//    public String visit(BooleanType n, SymbolTable symbol_table) throws Exception {
-//        //return "boolean";
-//        return null;
-//    }
+    /**
+     * f0 -> "boolean"
+     */
+    public String visit(BooleanType n, SymbolTable symbol_table) throws Exception {
+        return "boolean";
+    }
 
     /**
      * f0 -> "int"
@@ -475,20 +474,44 @@ public class LoweringVisitor extends GJDepthFirst<String, SymbolTable> {
         return null;
     }
 
-//    /**
-//     * f0 -> Clause()
-//     * f1 -> "&&"
-//     * f2 -> Clause()
-//     */
-//    public String visit(AndExpression n, SymbolTable symbol_table) throws Exception {
-//        String clause1 = n.f0.accept(this, symbol_table);
-//        String clause2 = n.f2.accept(this, symbol_table);
-//
-//        if (!clause1.equals("boolean") || !clause2.equals("boolean"))
-//            throw new Exception("Cannot apply && operator between " + clause1 + " and " + clause2);
-//        return "boolean";
-//        return null;
-//    }
+    /**
+     * f0 -> Clause()
+     * f1 -> "&&"
+     * f2 -> Clause()
+     */
+    public String visit(AndExpression n, SymbolTable symbol_table) throws Exception {
+        String clause1_reg = n.f0.accept(this, symbol_table);
+
+        String short_label = newIfLabel();
+        String second_load_label = newIfLabel();
+        String end_label = newIfLabel();
+        emit("\n\tbr i1 " + clause1_reg + ", label %" + second_load_label + ", label %" + short_label + '\n');
+
+        //short_label:
+        //br label %end_label
+        emit('\t' + short_label + ":\n");               //short basic block
+        emit("\tbr label %" + end_label + '\n');
+
+        //second_load_label:
+        //%_1 = load i1, i1* %c
+        //br label %end_label
+        emit('\t' + second_load_label + ":\n");         //load basic block
+        String clause2_reg = n.f2.accept(this, symbol_table);
+        emit("\tbr label %" + end_label + '\n');
+
+        //TODO na dw giati uparxei auto
+        //emit('\t' + second_load_label + ":\n");
+        //emit("\tbr label %" + end_label + '\n');
+
+        //Get apporopriate value, depending on the predecesor block
+        //exp_res_3:
+        //%_2 = phi i1  [ 0, %exp_res_0 ], [ %_1, %exp_res_2 ]
+        String phi_reg = newTemp();                               //phi block
+        emit('\t' + end_label + ":\n");
+        emit('\t' + phi_reg + " = phi i1 [ 0, %" + short_label + " ], [ " + clause2_reg + ", %" + second_load_label + " ]\n\n");
+
+        return phi_reg;
+    }
 
 
 //    /**
@@ -754,22 +777,20 @@ public class LoweringVisitor extends GJDepthFirst<String, SymbolTable> {
     public String visit(IntegerLiteral n, SymbolTable symbol_table) throws Exception {
         return n.f0.toString();
     }
-//
-//    /**
-//     * f0 -> "true"
-//     */
-//    public String visit(TrueLiteral n, SymbolTable symbol_table) throws Exception {
-//        //return "true";
-//        return null;
-//    }
-//
-//    /**
-//     * f0 -> "false"
-//     */
-//    public String visit(FalseLiteral n, SymbolTable symbol_table) throws Exception {
-////        return "false";
-//        return null;
-//    }
+
+    /**
+     * f0 -> "true"
+     */
+    public String visit(TrueLiteral n, SymbolTable symbol_table) throws Exception {
+        return "1";
+    }
+
+    /**
+     * f0 -> "false"
+     */
+    public String visit(FalseLiteral n, SymbolTable symbol_table) throws Exception {
+        return "0";
+    }
 
     /**
      * f0 -> "this"
