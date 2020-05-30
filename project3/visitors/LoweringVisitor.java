@@ -13,7 +13,7 @@ public class LoweringVisitor extends GJDepthFirst<String, SymbolTable> {
     private String current_method;
     private final File file;
     private int current_reg_num;
-    private int current_if_label_num;
+    private int current_label_num;
     private String pr_expr_var;
     private final HashMap<String, Integer> methods_number;
     private LinkedHashMap<String, String> parameters_map;
@@ -36,11 +36,11 @@ public class LoweringVisitor extends GJDepthFirst<String, SymbolTable> {
     }
 
     private String newIfLabel() {
-        return "if" + current_if_label_num++;
+        return "if" + current_label_num++;
     }
 
     private String newOobLabel() {
-        return "oob" + current_if_label_num++;
+        return "oob" + current_label_num++;
     }
 
 
@@ -133,20 +133,20 @@ public class LoweringVisitor extends GJDepthFirst<String, SymbolTable> {
         emit("\n\t" + ok_label + ":\n");
     }
 
-    private String getArrayElementReg (String array_ptr_reg, String index, String llvm_array_type) throws IOException {
+    private String getArrayElementReg (String array_ptr_reg, String index, String llvm_array_type) throws Exception {
         String index_reg = newTemp();
         if (llvm_array_type.equals("i32*")) { //int array
-            //%_9 = add i32 1, 0
             emit('\t' + index_reg + " = add i32 1, " + index + '\n');
         }else if (llvm_array_type.equals("i8*")) { //boolean array
-            //%_8 = add i32 1, 0
-            //%_9 = getelementptr i32, i32* %_4, i32 %_8
             emit('\t' + index_reg + " = add i32 4, " + index + '\n');
-            llvm_array_type = "i8";
-        }
+        } else throw new Exception("Unexpected error in while getting element register of Array");
+
+        StringBuilder llvm_builder_str = new StringBuilder(llvm_array_type);
+        llvm_builder_str.deleteCharAt(llvm_builder_str.length()-1);
+
         //%_10 = getelementptr i32, i32* %_4, i32 %_9
         String array_element_reg = newTemp();
-        emit('\t' + array_element_reg + " = getelementptr " + llvm_array_type + ", " + llvm_array_type + "* " + array_ptr_reg + ", i32 " + index_reg + '\n');
+        emit('\t' + array_element_reg + " = getelementptr " + llvm_builder_str.toString() + ", " + llvm_builder_str.toString() + "* " + array_ptr_reg + ", i32 " + index_reg + '\n');
         return array_element_reg;
     }
 
@@ -481,17 +481,17 @@ public class LoweringVisitor extends GJDepthFirst<String, SymbolTable> {
         //br i1 %case, label %if, label %else
         emit("\tbr i1 " + expression + ", label %" + if_label + ", label %" + else_label + '\n');
 
-        emit("\n\t" + if_label + ":\n");
+        emit("\n" + if_label + ":\n");
         n.f4.accept(this, symbol_table);
         //br label %goto
         emit("\tbr label %" + end_label + '\n');
 
-        emit("\n\t" + else_label + ":\n");
+        emit("\n" + else_label + ":\n");
         n.f6.accept(this, symbol_table);
         //br label %goto
         emit("\tbr label %" + end_label + '\n');
 
-        emit("\n\t" + end_label + ":\n");
+        emit("\n" + end_label + ":\n");
         return null;
     }
 //
@@ -539,13 +539,13 @@ public class LoweringVisitor extends GJDepthFirst<String, SymbolTable> {
 
         //short_label:
         //br label %end_label
-        emit('\t' + short_label + ":\n");               //short basic block
+        emit('\n' + short_label + ":\n");               //short basic block
         emit("\tbr label %" + end_label + '\n');
 
         //second_load_label:
         //%_1 = load i1, i1* %c
         //br label %end_label
-        emit('\t' + second_load_label + ":\n");         //load basic block
+        emit('\n' + second_load_label + ":\n");         //load basic block
         String clause2_reg = n.f2.accept(this, symbol_table);
         emit("\tbr label %" + end_label + '\n');
 
@@ -557,7 +557,7 @@ public class LoweringVisitor extends GJDepthFirst<String, SymbolTable> {
         //exp_res_3:
         //%_2 = phi i1  [ 0, %exp_res_0 ], [ %_1, %exp_res_2 ]
         String phi_reg = newTemp();                               //phi block
-        emit('\t' + end_label + ":\n");
+        emit('\n' + end_label + ":\n");
         emit('\t' + phi_reg + " = phi i1 [ 0, %" + short_label + " ], [ " + clause2_reg + ", %" + second_load_label + " ]\n\n");
 
         return phi_reg;
@@ -654,7 +654,7 @@ public class LoweringVisitor extends GJDepthFirst<String, SymbolTable> {
 
         emitArrayOobCode(pr_expr_1, pr_expr_2, llvm_type);
         String element_reg_ptr = getArrayElementReg(pr_expr_1, pr_expr_2, llvm_type);
-        
+
         StringBuilder llvm_builder_str = new StringBuilder(llvm_type);
         llvm_builder_str.deleteCharAt(llvm_builder_str.length()-1);
 
@@ -662,7 +662,7 @@ public class LoweringVisitor extends GJDepthFirst<String, SymbolTable> {
         String element_reg = newTemp();
         emit('\t' + element_reg + " = load " + llvm_builder_str.toString() + ", " + llvm_builder_str.toString() + "* " + element_reg_ptr + '\n');
 
-        if (llvm_type.equals("i8*")) {
+        if (llvm_type.equals("i8*")) { //if boolean array
             //%_22 = trunc i8 %_21 to i1
             String trunc_reg = newTemp();
             emit('\t' + trunc_reg + " = trunc i8 " + element_reg + " to i1\n");
@@ -866,10 +866,10 @@ public class LoweringVisitor extends GJDepthFirst<String, SymbolTable> {
         //label:
         //call void @throw_oob()
         //br label %oob_ok_0
-        emit("\n\t" + error_label + ":\n");
+        emit("\n" + error_label + ":\n");
         emit("\tcall void @throw_oob()\n");
         emit("\tbr label %" + ok_label + '\n');
-        emit("\n\t" + ok_label + ":\n");
+        emit("\n" + ok_label + ":\n");
 
         String calloc_reg = newTemp();
         emit('\t' + calloc_reg + " = call i8* @calloc(i32 1, i32 " + array_size_reg + ")\n");
