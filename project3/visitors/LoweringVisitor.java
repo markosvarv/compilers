@@ -428,8 +428,18 @@ public class LoweringVisitor extends GJDepthFirst<String, SymbolTable> {
         String java_type = symbol_table.getTypeofIdentifier(id, current_class, current_method);
         String llvm_type = getLLVMType(java_type);
 
+        ClassContents field_class_contents = symbol_table.getFieldClassContents(id, current_class, current_method);
+        String load_reg;
+        if (field_class_contents != null) {
+            load_reg = emitClassFieldCode(field_class_contents, id, llvm_type);
+            //%_38 = load i32*, i32** %_37
+            //String load_reg = newTemp();
+            //emit('\t' + load_reg + " = load " + llvm_builder_str.toString() + "*, " + llvm_builder_str.toString() + "** " + field_reg + '\n');
+            //emit("\tstore " + llvm_builder_str.toString() + " " + assignment_expr + ", " + llvm_builder_str.toString() + "* " + load_reg + '\n');
+        } else load_reg = '%' + id;
+
         String array_ptr_reg = newTemp();
-        emit('\t' + array_ptr_reg + " = load " + llvm_type + ", " + llvm_type + "* %" + id + '\n');
+        emit('\t' + array_ptr_reg + " = load " + llvm_type + ", " + llvm_type + "* " + load_reg + '\n');
 
         String array_index = n.f2.accept(this, symbol_table);
 
@@ -441,17 +451,11 @@ public class LoweringVisitor extends GJDepthFirst<String, SymbolTable> {
         StringBuilder llvm_builder_str = new StringBuilder(llvm_type);
         llvm_builder_str.deleteCharAt(llvm_builder_str.length() - 1);
 
-        ClassContents field_class_contents = symbol_table.getFieldClassContents(id, current_class, current_method);
-        if (field_class_contents != null) {
-            String field_reg = emitClassFieldCode(field_class_contents, id, llvm_type);
-            //%_38 = load i32*, i32** %_37
-            String load_reg = newTemp();
-            emit('\t' + load_reg + " = load " + llvm_builder_str.toString() + "*, " + llvm_builder_str.toString() + "** " + field_reg + '\n');
-            emit("\tstore " + llvm_builder_str.toString() + " " + assignment_expr + ", " + llvm_builder_str.toString() + "* " + load_reg + '\n');
-        } else {
-            //if (llvm_type.equals("i8*")) //%_12 = zext i1 1 to i8//TODO
-            emit("\tstore " + llvm_builder_str.toString() + " " + assignment_expr + ", " + llvm_builder_str.toString() + "* " + array_element_reg + '\n');
-        }
+        //if (llvm_type.equals("i8*")) //%_12 = zext i1 1 to i8//TODO
+
+
+        emit("\tstore " + llvm_builder_str.toString() + " " + assignment_expr + ", " + llvm_builder_str.toString() + "* " + array_element_reg + '\n');
+
         return null;
     }
 
@@ -677,20 +681,30 @@ public class LoweringVisitor extends GJDepthFirst<String, SymbolTable> {
         return element_reg;
     }
 
-//    /**
-//     * f0 -> PrimaryExpression()
-//     * f1 -> "."
-//     * f2 -> "length"
-//     */
-//    public String visit(ArrayLength n, SymbolTable symbol_table) throws Exception {
-////        String pr_expr_type = n.f0.accept(this, symbol_table);
-////        if (!pr_expr_type.equals("int[]") && !pr_expr_type.equals("boolean[]"))
-////            throw new Exception("Cannot apply .length to " + pr_expr_type);
-////        return "int";
-//        return null;
-//    }
-//
-//
+    /**
+     * f0 -> PrimaryExpression()
+     * f1 -> "."
+     * f2 -> "length"
+     */
+    public String visit(ArrayLength n, SymbolTable symbol_table) throws Exception {
+        String pr_expr = n.f0.accept(this, symbol_table);
+
+        String java_array_type = symbol_table.getTypeofIdentifier(pr_expr_var, current_class, current_method);
+        String llvm_array_type = getLLVMType(java_array_type);
+
+        if (llvm_array_type.equals("i8*")) {
+            String bitcast_reg = newTemp();
+            emit('\t' + bitcast_reg + " = bitcast i8* " + pr_expr + " to i32*\n");
+            pr_expr = bitcast_reg;
+        }
+
+        String array_size_reg = newTemp();
+        emit("\n\t" + array_size_reg + " = load i32, i32* " + pr_expr + '\n');
+
+        return array_size_reg;
+    }
+
+
     /**
      * f0 -> PrimaryExpression()
      * f1 -> "."
