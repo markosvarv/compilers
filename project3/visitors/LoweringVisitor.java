@@ -453,7 +453,6 @@ public class LoweringVisitor extends GJDepthFirst<String, SymbolTable> {
 
         //if (llvm_type.equals("i8*")) //%_12 = zext i1 1 to i8//TODO
 
-
         emit("\tstore " + llvm_builder_str.toString() + " " + assignment_expr + ", " + llvm_builder_str.toString() + "* " + array_element_reg + '\n');
 
         return null;
@@ -544,6 +543,7 @@ public class LoweringVisitor extends GJDepthFirst<String, SymbolTable> {
 
         String short_label = newIfLabel();
         String second_load_label = newIfLabel();
+        String intermediate_label = newIfLabel();
         String end_label = newIfLabel();
         emit("\n\tbr i1 " + clause1_reg + ", label %" + second_load_label + ", label %" + short_label + '\n');
 
@@ -553,22 +553,18 @@ public class LoweringVisitor extends GJDepthFirst<String, SymbolTable> {
         emit("\tbr label %" + end_label + '\n');
 
         //second_load_label:
-        //%_1 = load i1, i1* %c
         //br label %end_label
         emit('\n' + second_load_label + ":\n");         //load basic block
         String clause2_reg = n.f2.accept(this, symbol_table);
+        emit("\tbr label %" + intermediate_label + '\n');
+
+        emit('\n' + intermediate_label + ":\n");
         emit("\tbr label %" + end_label + '\n');
 
-        //TODO na dw giati uparxei auto
-        //emit('\t' + second_load_label + ":\n");
-        //emit("\tbr label %" + end_label + '\n');
 
-        //Get apporopriate value, depending on the predecesor block
-        //exp_res_3:
-        //%_2 = phi i1  [ 0, %exp_res_0 ], [ %_1, %exp_res_2 ]
         String phi_reg = newTemp();                               //phi block
         emit('\n' + end_label + ":\n");
-        emit('\t' + phi_reg + " = phi i1 [ 0, %" + short_label + " ], [ " + clause2_reg + ", %" + second_load_label + " ]\n\n");
+        emit('\t' + phi_reg + " = phi i1 [ 0, %" + short_label + " ], [ " + clause2_reg + ", %" + intermediate_label + " ]\n\n");
 
         return phi_reg;
     }
@@ -805,7 +801,6 @@ public class LoweringVisitor extends GJDepthFirst<String, SymbolTable> {
         String expression = n.f0.accept(this, symbol_table);
 
         if (isNumeric(expression) || expression.startsWith("%")) {
-            //System.out.println("mphka sto if expr = " + expression);
             return expression;
         }
         else {
