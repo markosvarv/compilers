@@ -89,19 +89,15 @@ public class LoweringVisitor extends GJDepthFirst<String, SymbolTable> {
     }
 
     String emitClassFieldCode (ClassContents class_contents, String field, String llvm_type) throws IOException {
-        //%_1 = getelementptr i8, i8* %this, i32 8
         String field_pointer_reg = newTemp();
-
         emit('\t' + field_pointer_reg + " = getelementptr i8, i8* %this, i32 " + (class_contents.getFieldOffset(field)+8) + '\n');
 
-        //%_2 = bitcast i8* %_1 to i32*
         String bitcast_reg = newTemp();
         emit('\t' + bitcast_reg + " = bitcast i8* " + field_pointer_reg + " to " + llvm_type + "*\n");
         return bitcast_reg;
     }
 
     public void emitArrayOobCode (String array_reg, String index, String llvm_array_type) throws Exception {
-        //%_6 = bitcast i8* %_4 to i32*
         if (llvm_array_type.equals("i8*")) {
             String bitcast_reg = newTemp();
             emit('\t' + bitcast_reg + " = bitcast i8* " + array_reg + " to i32*\n");
@@ -109,11 +105,9 @@ public class LoweringVisitor extends GJDepthFirst<String, SymbolTable> {
         }
 
         //load the size of the array
-        //%_5 = load i32, i32* %_4
         String array_size_reg = newTemp();
         emit("\n\t" + array_size_reg + " = load i32, i32* " + array_reg + '\n');
 
-        //%_7 = icmp slt i32 0, %_5
         String check_index_reg = newTemp();
         emit('\t' + check_index_reg + " = icmp slt i32 " + index + ", " + array_size_reg + '\n');
 
@@ -121,9 +115,6 @@ public class LoweringVisitor extends GJDepthFirst<String, SymbolTable> {
         String error_label = newOobLabel();
         emit("\tbr i1 " + check_index_reg + ", label %" + ok_label + ", label %" + error_label + '\n');
 
-        //label:
-        //call void @throw_oob()
-        //br label %oob_ok_0
         emit("\n" + error_label + ":\n");
         emit("\tcall void @throw_oob()\n");
         emit("\tbr label %" + ok_label + '\n');
@@ -141,7 +132,6 @@ public class LoweringVisitor extends GJDepthFirst<String, SymbolTable> {
         StringBuilder llvm_builder_str = new StringBuilder(llvm_array_type);
         llvm_builder_str.deleteCharAt(llvm_builder_str.length()-1);
 
-        //%_10 = getelementptr i32, i32* %_4, i32 %_9
         String array_element_reg = newTemp();
         emit('\t' + array_element_reg + " = getelementptr " + llvm_builder_str.toString() + ", " + llvm_builder_str.toString() + "* " + array_ptr_reg + ", i32 " + index_reg + '\n');
         return array_element_reg;
@@ -401,7 +391,6 @@ public class LoweringVisitor extends GJDepthFirst<String, SymbolTable> {
         String id = n.f0.accept(this, symbol_table);
         String java_type = symbol_table.getTypeofIdentifier(id, current_class, current_method);
         String llvm_type = getLLVMType(java_type);
-        //System.out.println("llvm type of " + id + " with java type = " + java_type + " = " + llvm_type);
         String expr = n.f2.accept(this, symbol_table);
 
         ClassContents field_class_contents = symbol_table.getFieldClassContents(id, current_class, current_method);
@@ -663,12 +652,10 @@ public class LoweringVisitor extends GJDepthFirst<String, SymbolTable> {
         StringBuilder llvm_builder_str = new StringBuilder(llvm_array_type);
         llvm_builder_str.deleteCharAt(llvm_builder_str.length()-1);
 
-        //%_25 = load i32, i32* %_24
         String element_reg = newTemp();
         emit('\t' + element_reg + " = load " + llvm_builder_str.toString() + ", " + llvm_builder_str.toString() + "* " + element_reg_ptr + '\n');
 
         if (llvm_array_type.equals("i8*")) { //if boolean array
-            //%_22 = trunc i8 %_21 to i1
             String trunc_reg = newTemp();
             emit('\t' + trunc_reg + " = trunc i8 " + element_reg + " to i1\n");
             element_reg = trunc_reg;
@@ -721,27 +708,27 @@ public class LoweringVisitor extends GJDepthFirst<String, SymbolTable> {
         MethodContents method_contents = symbol_table.getMethodContents(class_name, id);
         String signature = getMethodSignature(method_contents);
 
-        //%ptr = bitcast i32* %ptr2 to i8**
-        String bitcast_reg = newTemp();
-        emit("\n\t" + bitcast_reg + " = bitcast i8* " + pr_expr_reg + " to i8***\n");
-
-        //%val = load i32, i32* %ptr
-        String load_reg = newTemp();
-        emit('\t' + load_reg + " = load i8**, i8*** " + bitcast_reg + '\n');
-
-        String element_pointer = newTemp();
-        emit('\t' + element_pointer + " = getelementptr i8*, i8** " + load_reg + ", i32 " + (method_contents.getMethodOffset()/8) + '\n');
-
-        String function_pointer = newTemp();
-        emit('\t' + function_pointer + " = load i8*, i8** " + element_pointer + '\n');
-
-        String signature_pointer = newTemp();
-        emit ('\t' + signature_pointer + " = bitcast i8* " + function_pointer + " to " + signature + '\n');
-
         n.f4.accept(this, symbol_table);
 
+        StringBuilder buf = new StringBuilder();
+
+        String bitcast_reg = newTemp();
+        buf.append("\n\t").append(bitcast_reg).append(" = bitcast i8* ").append(pr_expr_reg).append(" to i8***\n");
+
+        String load_reg = newTemp();
+        buf.append('\t').append(load_reg).append(" = load i8**, i8*** ").append(bitcast_reg).append('\n');
+
+        String element_pointer = newTemp();
+        buf.append('\t').append(element_pointer).append(" = getelementptr i8*, i8** ").append(load_reg).append(", i32 ").append(method_contents.getMethodOffset() / 8).append('\n');
+
+        String function_pointer = newTemp();
+        buf.append('\t').append(function_pointer).append(" = load i8*, i8** ").append(element_pointer).append('\n');
+
+        String signature_pointer = newTemp();
+        buf.append('\t').append(signature_pointer).append(" = bitcast i8* ").append(function_pointer).append(" to ").append(signature).append('\n');
+
         String call_reg = newTemp();
-        emit('\t' + call_reg + " = call " + getLLVMType(method_contents.getReturnType()) + " " + signature_pointer +  "(i8* " + pr_expr_reg);
+        buf.append('\t').append(call_reg).append(" = call ").append(getLLVMType(method_contents.getReturnType())).append(" ").append(signature_pointer).append("(i8* ").append(pr_expr_reg);
 
         LinkedList<String> argument_types = method_contents.getParameterTypes();
         LinkedList<String> argument_values = new LinkedList<>();
@@ -752,11 +739,11 @@ public class LoweringVisitor extends GJDepthFirst<String, SymbolTable> {
             if (!lparen.equals("(")) throw new Exception("Unexpected error in message send stack");
         }
         for (String current_type : argument_types) {
-            emit(", " + getLLVMType(current_type) + ' ' + argument_values.pop());
+            buf.append(", ").append(getLLVMType(current_type)).append(' ').append(argument_values.pop());
         }
         if (!argument_values.isEmpty()) throw new Exception("Unexpected error in message send");
 
-        emit(")\n\n");
+        emit(buf.toString()+")\n\n");
         return call_reg;
 
 
@@ -860,18 +847,13 @@ public class LoweringVisitor extends GJDepthFirst<String, SymbolTable> {
         String array_size_reg = newTemp();
         emit('\t' + array_size_reg + " = add i32 4, " + expr + '\n');
 
-        //%_1 = icmp sge i32 %_0, 1
         String icmp_reg = newTemp();
         emit('\t' + icmp_reg + " = icmp sge i32 " + array_size_reg + ", 4\n");
 
-        //br i1 %_1, label %nsz_ok_0, label %nsz_err_0
         String ok_label = newOobLabel();
         String error_label = newOobLabel();
         emit("\tbr i1 " + icmp_reg + ", label %" + ok_label + ", label %" + error_label + '\n');
 
-        //label:
-        //call void @throw_oob()
-        //br label %oob_ok_0
         emit("\n" + error_label + ":\n");
         emit("\tcall void @throw_oob()\n");
         emit("\tbr label %" + ok_label + '\n');
@@ -901,18 +883,13 @@ public class LoweringVisitor extends GJDepthFirst<String, SymbolTable> {
         String array_size_reg = newTemp();
         emit('\t' + array_size_reg + " = add i32 1, " + expr + '\n');
 
-        //%_1 = icmp sge i32 %_0, 1
         String icmp_reg = newTemp();
         emit('\t' + icmp_reg + " = icmp sge i32 " + array_size_reg + ", 1\n");
 
-        //br i1 %_1, label %nsz_ok_0, label %nsz_err_0
         String ok_label = newOobLabel();
         String error_label = newOobLabel();
         emit("\tbr i1 " + icmp_reg + ", label %" + ok_label + ", label %" + error_label + '\n');
 
-        //label:
-        //call void @throw_oob()
-        //br label %oob_ok_0
         emit("\n" + error_label + ":\n");
         emit("\tcall void @throw_oob()\n");
         emit("\tbr label %" + ok_label + '\n');
@@ -939,8 +916,6 @@ public class LoweringVisitor extends GJDepthFirst<String, SymbolTable> {
         String allocation_class = n.f1.accept(this, symbol_table);
 
         pr_expr_var = allocation_class;
-
-        //%result = call i8* @calloc(i32 1, i32 %val)
         String calloc_reg = newTemp();
 
         ClassContents class_contents = symbol_table.getClassContents(allocation_class);
@@ -951,12 +926,10 @@ public class LoweringVisitor extends GJDepthFirst<String, SymbolTable> {
         String bitcast_reg = newTemp();
         emit ('\t' + bitcast_reg + " = bitcast i8* " + calloc_reg + " to i8***\n");
 
-        //%ptr_idx = getelementptr i8, i8* %ptr, i32 %idx
         String getelementptr_reg = newTemp();
         int current_methods_num = methods_number.get(allocation_class);
         emit('\t' + getelementptr_reg + " = getelementptr [" + current_methods_num + " x i8*], [" + current_methods_num + " x i8*]* @." + allocation_class + "_vtable, i32 0, i32 0\n") ;
 
-        //store i32 %val, i32* %ptr
         emit("\tstore i8** " + getelementptr_reg + ", i8*** " + bitcast_reg + "\n\n");
         return calloc_reg;
     }
