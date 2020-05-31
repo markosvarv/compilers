@@ -6,7 +6,7 @@ public class ClassContents {
     LinkedHashMap<String, String> fields;
     LinkedHashMap <String, MethodContents> methods;
     LinkedHashMap<String, Integer> field_offsets;
-    LinkedHashMap<String, Integer> method_offsets;
+
     String class_name;
     String parent_class;
     boolean is_main;

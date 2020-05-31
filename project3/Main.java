@@ -15,15 +15,17 @@ class Main {
         for (String current_input : args) {
             SymbolTable symbol_table = new SymbolTable();
             System.out.println("\nFile: " + current_input);
+            String ll_file_path = current_input.substring(0, current_input.length()-5);
+            ll_file_path += ".ll";
 
             try{
                 fis = new FileInputStream(current_input);
                 MiniJavaParser parser = new MiniJavaParser(fis);
                 FillTableVisitor eval = new FillTableVisitor();
                 TypeCheckingVisitor type_ch = new TypeCheckingVisitor();
-                LoweringVisitor ll_visitor = new LoweringVisitor(current_input);
+                LoweringVisitor ll_visitor = new LoweringVisitor(ll_file_path);
                 Goal root = parser.Goal();
-                System.out.println("Program parsed successfully.");
+                System.out.println("\tProgram parsed successfully.");
                 try {
                     root.accept(eval, symbol_table);
                     root.accept(type_ch, symbol_table);
@@ -31,7 +33,9 @@ class Main {
                 }catch (Exception exc) {
                     System.err.println("Error: " + exc.getMessage());
                 }
+                System.out.println("\tProgram type checking completed successfully.");
                 root.accept(ll_visitor, symbol_table);
+                System.out.println("\tProgram lowering completed successfully. Saved in " + ll_file_path);
             }
             catch(ParseException ex){
                 System.out.println(ex.getMessage());
@@ -47,7 +51,7 @@ class Main {
                     System.err.println(ex.getMessage());
                 }
             }
-            System.out.println("-------------------------------");
+            System.out.println();
         }
     }
 }
