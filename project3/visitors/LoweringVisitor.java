@@ -94,7 +94,7 @@ public class LoweringVisitor extends GJDepthFirst<String, SymbolTable> {
         //%_1 = getelementptr i8, i8* %this, i32 8
         String field_pointer_reg = newTemp();
 
-        emit('\t' + field_pointer_reg + " = getelementptr i8, i8* %this, i32 " + class_contents.getFieldOffset(field) + '\n');
+        emit('\t' + field_pointer_reg + " = getelementptr i8, i8* %this, i32 " + (class_contents.getFieldOffset(field)+8) + '\n');
 
         //%_2 = bitcast i8* %_1 to i32*
         String bitcast_reg = newTemp();
@@ -308,11 +308,12 @@ public class LoweringVisitor extends GJDepthFirst<String, SymbolTable> {
      */
     public String visit(MethodDeclaration n, SymbolTable symbol_table) throws Exception {
         current_reg_num = 0;
-        String declaration_return_type = n.f1.accept(this, symbol_table);
+        String java_declaration_return_type = n.f1.accept(this, symbol_table);
+        String llvm_declaration_return_type = getLLVMType(java_declaration_return_type);
         current_method = n.f2.accept(this, symbol_table);
         parameters_map = new LinkedHashMap<>();
 
-        emit("\ndefine " + getLLVMType(declaration_return_type) + " @" + current_class + '.' + current_method + "(i8* %this");
+        emit("\ndefine " + llvm_declaration_return_type + " @" + current_class + '.' + current_method + "(i8* %this");
         n.f4.accept(this, symbol_table);
         emit (") {\n");
 
@@ -327,7 +328,7 @@ public class LoweringVisitor extends GJDepthFirst<String, SymbolTable> {
         n.f8.accept(this, symbol_table);
 
         String return_expr = n.f10.accept(this, symbol_table);
-        emit("\tret i32 " + return_expr + "\n}\n");
+        emit("\tret " + llvm_declaration_return_type + " " + return_expr + "\n}\n");
 
         return null;
     }
@@ -401,7 +402,6 @@ public class LoweringVisitor extends GJDepthFirst<String, SymbolTable> {
 
         ClassContents field_class_contents = symbol_table.getFieldClassContents(id, current_class, current_method);
         if (field_class_contents != null) {
-            System.out.println("mpika sto if");
             String field_reg = emitClassFieldCode(field_class_contents, id, llvm_type);
             emit("\tstore " + llvm_type + " " + expr + ", " + llvm_type + "* " + field_reg + '\n');
         }
@@ -713,13 +713,13 @@ public class LoweringVisitor extends GJDepthFirst<String, SymbolTable> {
         String pr_expr_reg = n.f0.accept(this, symbol_table);
         String id = n.f2.accept(this, symbol_table);
 
-        System.out.println("id = " + id + " pr_expr_var = " + pr_expr_var + " current class = " + current_class + " current_method = " + current_method);
+        //System.out.println("id = " + id + " pr_expr_var = " + pr_expr_var + " current class = " + current_class + " current_method = " + current_method);
 
         String class_name=pr_expr_var;
         if (!symbol_table.containsClass(pr_expr_var)) {
             class_name = symbol_table.getTypeofIdentifier (pr_expr_var, current_class, current_method);
         }
-        System.out.println("message send class_name = " + class_name);
+        //System.out.println("message send class_name = " + class_name);
         MethodContents method_contents = symbol_table.getMethodContents(class_name, id);
         String signature = getMethodSignature(method_contents);
 
@@ -743,7 +743,7 @@ public class LoweringVisitor extends GJDepthFirst<String, SymbolTable> {
         n.f4.accept(this, symbol_table);
 
         String call_reg = newTemp();
-        emit('\t' + call_reg + " = call " + "i32 " + signature_pointer +  "(i8* " + pr_expr_reg);
+        emit('\t' + call_reg + " = call " + getLLVMType(method_contents.getReturnType()) + " " + signature_pointer +  "(i8* " + pr_expr_reg);
 
         LinkedList<String> argument_types = method_contents.getParameterTypes();
         LinkedList<String> argument_values = new LinkedList<>();
@@ -810,7 +810,6 @@ public class LoweringVisitor extends GJDepthFirst<String, SymbolTable> {
             String temp_reg;
             ClassContents field_class_contents = symbol_table.getFieldClassContents(expression, current_class, current_method);
             if (field_class_contents != null) {
-                System.out.println("mphka sto if");
                 String field_reg = emitClassFieldCode(field_class_contents, expression, llvm_type);
                 temp_reg = newTemp();
                 emit("\t" + temp_reg + " = load " + llvm_type + ", " + llvm_type + "* " + field_reg + '\n');
